@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en" data-language="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#171b3f">
+    <title>{% block title %}Job Watcher{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
+    <script src="{{ url_for('static', path='js/app.js') }}" defer></script>
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <a class="brand" href="/" aria-label="Job Watcher home">
+                <span class="brand-placeholder" aria-hidden="true"></span>
+                <span class="brand-name">JOB<br>WATCHER</span>
+            </a>
+
+            <nav class="main-nav" aria-label="Primary navigation">
+                <a class="nav-link {% if section == 'overview' %}active{% endif %}" href="/">
+                    <span class="nav-mark">01</span><span data-en="Overview" data-pt="Visão geral">Overview</span>
+                </a>
+                <a class="nav-link {% if section == 'jobs' %}active{% endif %}" href="/jobs">
+                    <span class="nav-mark">02</span><span data-en="All jobs" data-pt="Todas as vagas">All jobs</span>
+                </a>
+                <a class="nav-link {% if section == 'highlighted' %}active{% endif %}" href="/jobs/highlighted">
+                    <span class="nav-mark">03</span><span data-en="Highlights" data-pt="Destaques">Highlights</span>
+                </a>
+                <a class="nav-link {% if section == 'archived' %}active{% endif %}" href="/jobs/archived">
+                    <span class="nav-mark">04</span><span data-en="Archive" data-pt="Arquivo">Archive</span>
+                </a>
+                <a class="nav-link {% if section == 'companies' %}active{% endif %}" href="/companies">
+                    <span class="nav-mark">05</span><span data-en="Companies" data-pt="Empresas">Companies</span>
+                </a>
+                <a class="nav-link {% if section == 'settings' %}active{% endif %}" href="/settings">
+                    <span class="nav-mark">06</span><span data-en="Settings" data-pt="Configurações">Settings</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-foot">
+                <div class="language-control">
+                    <label for="language" data-en="Language" data-pt="Idioma">Language</label>
+                    <select id="language" aria-label="Interface language">
+                        <option value="en">English</option>
+                        <option value="pt">Português</option>
+                    </select>
+                </div>
+                <div class="schedule-note">
+                    <span data-en="Next daily windows" data-pt="Horários diários">Next daily windows</span>
+                    <strong>09 · 12 · 15 · 18</strong>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <p class="eyebrow">INHIRE MONITOR</p>
+                    <h1>{% block heading %}Job Watcher{% endblock %}</h1>
+                </div>
+                <form action="/checks/run" method="post">
+                    <input type="hidden" name="return_to" value="{{ request.url.path }}">
+                    <button class="button button-primary" type="submit" {% if monitor_running %}disabled{% endif %}>
+                        {% if monitor_running %}
+                        <span data-en="Checking now" data-pt="Verificando agora">Checking now</span>
+                        {% else %}
+                        <span data-en="Check now" data-pt="Verificar agora">Check now</span>
+                        {% endif %}
+                    </button>
+                </form>
+            </header>
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+</body>
+</html>
+

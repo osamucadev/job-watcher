@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Settings | Job Watcher{% endblock %}
+{% block heading %}<span data-en="Settings" data-pt="Configurações">Settings</span>{% endblock %}
+{% block content %}
+<div class="settings-grid">
+    <section class="form-panel form-panel-wide">
+        <p class="eyebrow" data-en="PROFILE SIGNALS" data-pt="SINAIS DO PERFIL">PROFILE SIGNALS</p>
+        <h2 data-en="Highlight keywords" data-pt="Palavras de destaque">Highlight keywords</h2>
+        <p data-en="Use one term per line. Matching ignores case and accents." data-pt="Use um termo por linha. A busca ignora maiúsculas e acentos.">Use one term per line. Matching ignores case and accents.</p>
+        <form action="/settings/keywords" method="post" class="stack-form">
+            <label>
+                <span class="sr-only" data-en="Highlight keywords" data-pt="Palavras de destaque">Highlight keywords</span>
+                <textarea name="keywords" rows="18">{{ keywords }}</textarea>
+            </label>
+            <button class="button button-primary" type="submit" data-en="Save keywords" data-pt="Salvar palavras">Save keywords</button>
+        </form>
+    </section>
+    <section class="info-panel">
+        <p class="eyebrow" data-en="AUTOMATION" data-pt="AUTOMAÇÃO">AUTOMATION</p>
+        <h2 data-en="Daily monitoring" data-pt="Monitoramento diário">Daily monitoring</h2>
+        <div class="time-grid"><strong>09</strong><strong>12</strong><strong>15</strong><strong>18</strong></div>
+        <p data-en="Runs every day, including weekends and holidays, using São Paulo time." data-pt="Executa todos os dias, incluindo finais de semana e feriados, no horário de São Paulo.">Runs every day, including weekends and holidays, using São Paulo time.</p>
+        <p data-en="A missed window triggers one catch up check when the service starts." data-pt="Um horário perdido gera uma verificação de recuperação quando o serviço inicia.">A missed window triggers one catch up check when the service starts.</p>
+    </section>
+</div>
+{% endblock %}
+

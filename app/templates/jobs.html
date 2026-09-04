@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Jobs | Job Watcher{% endblock %}
+{% block heading %}
+{% if view == 'highlighted' %}<span data-en="Highlighted jobs" data-pt="Vagas em destaque">Highlighted jobs</span>
+{% elif view == 'archived' %}<span data-en="Job archive" data-pt="Arquivo de vagas">Job archive</span>
+{% else %}<span data-en="All active jobs" data-pt="Todas as vagas ativas">All active jobs</span>{% endif %}
+{% endblock %}
+{% block content %}
+<section class="section-block section-block-first">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow"><span>{{ jobs|length }}</span> <span data-en="RECORDS" data-pt="REGISTROS">RECORDS</span></p>
+            <p class="section-intro">
+                {% if view == 'highlighted' %}<span data-en="Roles matched against your editable interest keywords." data-pt="Vagas associadas às suas palavras de interesse editáveis.">Roles matched against your editable interest keywords.</span>
+                {% elif view == 'archived' %}<span data-en="Jobs archived by you or removed from their source." data-pt="Vagas arquivadas por você ou removidas da origem.">Jobs archived by you or removed from their source.</span>
+                {% else %}<span data-en="Every currently available opportunity across monitored companies." data-pt="Todas as oportunidades disponíveis nas empresas monitoradas.">Every currently available opportunity across monitored companies.</span>{% endif %}
+            </p>
+        </div>
+    </div>
+    {% include "_job_list.html" %}
+</section>
+{% endblock %}
+

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Overview | Job Watcher{% endblock %}
+{% block heading %}<span data-en="Your job radar" data-pt="Seu radar de vagas">Your job radar</span>{% endblock %}
+{% block content %}
+<section class="tile-grid" aria-label="Monitoring summary">
+    <a class="metric-tile tile-yellow" href="/jobs">
+        <span class="metric-label" data-en="New this check" data-pt="Novas nesta verificação">New this check</span>
+        <strong>{{ stats['new'] or 0 }}</strong>
+        <span class="metric-foot" data-en="Open opportunities" data-pt="Abrir oportunidades">Open opportunities</span>
+    </a>
+    <a class="metric-tile tile-blue" href="/jobs/highlighted">
+        <span class="metric-label" data-en="For your profile" data-pt="Para seu perfil">For your profile</span>
+        <strong>{{ stats['highlighted'] or 0 }}</strong>
+        <span class="metric-foot" data-en="Highlighted roles" data-pt="Vagas em destaque">Highlighted roles</span>
+    </a>
+    <a class="metric-tile tile-purple" href="/jobs">
+        <span class="metric-label" data-en="Active jobs" data-pt="Vagas ativas">Active jobs</span>
+        <strong>{{ stats['active'] or 0 }}</strong>
+        <span class="metric-foot">{{ company_stats['active'] or 0 }} <span data-en="companies monitored" data-pt="empresas monitoradas">companies monitored</span></span>
+    </a>
+    <a class="metric-tile tile-ink" href="/jobs/archived">
+        <span class="metric-label" data-en="Archive" data-pt="Arquivo">Archive</span>
+        <strong>{{ stats['archived'] or 0 }}</strong>
+        <span class="metric-foot" data-en="Preserved records" data-pt="Registros preservados">Preserved records</span>
+    </a>
+</section>
+
+<section class="section-block">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow" data-en="LATEST SIGNALS" data-pt="SINAIS RECENTES">LATEST SIGNALS</p>
+            <h2 data-en="Recent opportunities" data-pt="Oportunidades recentes">Recent opportunities</h2>
+        </div>
+        <a class="text-link" href="/jobs" data-en="View all" data-pt="Ver todas">View all</a>
+    </div>
+    {% include "_job_list.html" %}
+</section>
+{% endblock %}
+

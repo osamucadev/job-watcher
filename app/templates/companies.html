@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Companies | Job Watcher{% endblock %}
+{% block heading %}<span data-en="Monitored companies" data-pt="Empresas monitoradas">Monitored companies</span>{% endblock %}
+{% block content %}
+<div class="split-layout">
+    <section class="section-block section-block-first">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow"><span>{{ companies|length }}</span> <span data-en="SOURCES" data-pt="FONTES">SOURCES</span></p>
+                <p class="section-intro" data-en="Pause a source without losing its history." data-pt="Pause uma fonte sem perder seu histórico.">Pause a source without losing its history.</p>
+            </div>
+        </div>
+        <div class="company-list">
+            {% for company in companies %}
+            <article class="company-row {% if not company['is_active'] %}is-paused{% endif %}">
+                <div>
+                    <p class="company-index">{{ "%02d"|format(loop.index) }}</p>
+                    <h2>{{ company['name'] }}</h2>
+                    <a href="{{ company['url'] }}" target="_blank" rel="noopener noreferrer">{{ company['url'] }}</a>
+                    <p class="company-status">
+                        <span>{{ company['active_jobs'] }}</span> <span data-en="active jobs" data-pt="vagas ativas">active jobs</span>
+                        {% if company['last_error'] %}<span class="status-error" data-en="Collection issue" data-pt="Falha na coleta">Collection issue</span>{% endif %}
+                    </p>
+                </div>
+                <div class="row-actions">
+                    <form action="/companies/{{ company['id'] }}/toggle" method="post">
+                        <button class="button button-quiet" type="submit">
+                            {% if company['is_active'] %}<span data-en="Pause" data-pt="Pausar">Pause</span>{% else %}<span data-en="Resume" data-pt="Retomar">Resume</span>{% endif %}
+                        </button>
+                    </form>
+                    <form action="/companies/{{ company['id'] }}/remove" method="post">
+                        <button class="button button-danger" type="submit" data-en="Remove" data-pt="Remover">Remove</button>
+                    </form>
+                </div>
+            </article>
+            {% endfor %}
+        </div>
+    </section>
+
+    <aside class="form-panel">
+        <p class="eyebrow" data-en="NEW SOURCE" data-pt="NOVA FONTE">NEW SOURCE</p>
+        <h2 data-en="Add a company" data-pt="Adicionar empresa">Add a company</h2>
+        <form action="/companies" method="post" class="stack-form">
+            <label>
+                <span data-en="Company name" data-pt="Nome da empresa">Company name</span>
+                <input name="name" required autocomplete="organization" data-placeholder-en="Example Company" data-placeholder-pt="Empresa Exemplo" placeholder="Example Company">
+            </label>
+            <label>
+                <span data-en="Career page URL" data-pt="URL da página de vagas">Career page URL</span>
+                <input type="url" name="url" required placeholder="https://company.inhire.app/vagas">
+            </label>
+            <button class="button button-primary button-wide" type="submit" data-en="Add source" data-pt="Adicionar fonte">Add source</button>
+        </form>
+    </aside>
+</div>
+{% endblock %}
+

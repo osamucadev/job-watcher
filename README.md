@@ -4,6 +4,10 @@ Job Watcher is a local web dashboard that monitors company career pages and iden
 
 The first supported platform will be InHire. The project will be structured so that other job platforms can be added later through independent source adapters.
 
+## Interface preview
+
+![Job Watcher highlighted jobs dashboard](docs/images/job-watcher-highlighted.png)
+
 ## Status
 
 The first functional version is available. It includes the InHire collector, persistent history, scheduled checks, a bilingual local dashboard, company management, profile highlights, and job archiving.

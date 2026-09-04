@@ -58,12 +58,10 @@ a { color: inherit; }
     background: var(--purple);
 }
 
-.brand-placeholder {
+.brand-mark {
     width: 45px;
     height: 45px;
     display: block;
-    background: var(--yellow);
-    box-shadow: 14px 14px 0 var(--ink-950);
 }
 
 .brand-name {

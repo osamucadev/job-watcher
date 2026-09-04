@@ -58,7 +58,7 @@ The interface will draw inspiration from the Windows 8 Metro design language:
 - Strong typography
 - Minimal decoration and restrained motion
 
-The logo and favicon will use an original geometric symbol. They will not use initials or a letter based monogram.
+The logo and favicon use three geometric job rows with distinct status blocks. The mark represents monitored listings and changing job states without using initials or a letter based monogram.
 
 ## Local deployment
 

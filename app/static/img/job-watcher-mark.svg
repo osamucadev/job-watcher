@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Job Watcher</title>
+  <desc id="desc">Three job rows with colored status blocks</desc>
+  <rect width="64" height="64" fill="#111633"/>
+  <rect x="8" y="9" width="36" height="10" fill="#f2f0f7"/>
+  <rect x="48" y="9" width="8" height="10" fill="#ffc52f"/>
+  <rect x="8" y="27" width="27" height="10" fill="#8f96c2"/>
+  <rect x="39" y="27" width="17" height="10" fill="#28c8c2"/>
+  <rect x="8" y="45" width="41" height="10" fill="#6d4bc3"/>
+  <rect x="53" y="45" width="3" height="10" fill="#2366d1"/>
+</svg>
+

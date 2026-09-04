@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#171b3f">
     <title>{% block title %}Job Watcher{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', path='img/job-watcher-mark.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
     <script src="{{ url_for('static', path='js/app.js') }}" defer></script>
 </head>
@@ -12,7 +13,7 @@
     <div class="app-shell">
         <aside class="sidebar">
             <a class="brand" href="/" aria-label="Job Watcher home">
-                <span class="brand-placeholder" aria-hidden="true"></span>
+                <img class="brand-mark" src="{{ url_for('static', path='img/job-watcher-mark.svg') }}" alt="">
                 <span class="brand-name">JOB<br>WATCHER</span>
             </a>
 
@@ -75,4 +76,3 @@
     </div>
 </body>
 </html>
-

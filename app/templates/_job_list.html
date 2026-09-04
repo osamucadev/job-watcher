@@ -8,8 +8,10 @@
                 {% if job['is_new'] %}<span class="tag tag-new" data-en="New" data-pt="Nova">New</span>{% endif %}
                 {% if job['reopened_at'] and job['status'] == 'active' %}<span class="tag tag-reopened" data-en="Reopened" data-pt="Reaberta">Reopened</span>{% endif %}
                 {% if job['is_highlighted'] %}<span class="tag tag-highlight" data-en="Highlight" data-pt="Destaque">Highlight</span>{% endif %}
-                {% if job['archive_reason'] == 'source' %}<span class="tag tag-muted" data-en="Removed at source" data-pt="Removida na origem">Removed at source</span>{% endif %}
-                {% if job['archive_reason'] == 'manual' %}<span class="tag tag-muted" data-en="Archived by you" data-pt="Arquivada por você">Archived by you</span>{% endif %}
+                {% if job['archive_reason'] %}
+                {% set reason_label = archive_reason_labels.get(job['archive_reason']) %}
+                {% if reason_label %}<span class="tag tag-muted" data-en="{{ reason_label['en'] }}" data-pt="{{ reason_label['pt'] }}">{{ reason_label['en'] }}</span>{% endif %}
+                {% endif %}
             </div>
             <h2>{{ job['title'] }}</h2>
             <p><span data-en="First seen" data-pt="Vista primeiro em">First seen</span> <time datetime="{{ job['first_seen_at'] }}">{{ job['first_seen_at'] }}</time></p>
@@ -19,10 +21,26 @@
                 <span data-en="Open job" data-pt="Abrir vaga">Open job</span><span aria-hidden="true">↗</span>
             </a>
             {% if job['status'] == 'active' %}
-            <form action="/jobs/{{ job['id'] }}/archive" method="post">
-                <input type="hidden" name="return_to" value="{{ request.url.path }}">
-                <button class="button button-quiet" type="submit" data-en="Archive" data-pt="Arquivar">Archive</button>
-            </form>
+            <details class="archive-menu">
+                <summary class="button button-quiet" data-en="Archive" data-pt="Arquivar">Archive</summary>
+                <form action="/jobs/{{ job['id'] }}/archive" method="post" class="archive-form">
+                    <input type="hidden" name="return_to" value="{{ request.url.path }}">
+                    <label>
+                        <span data-en="Reason" data-pt="Motivo">Reason</span>
+                        <select name="reason" required>
+                            <option value="" disabled selected data-en="Choose a reason" data-pt="Escolha um motivo">Choose a reason</option>
+                            {% for slug, label_en, label_pt in archive_reasons %}
+                            <option value="{{ slug }}" data-en="{{ label_en }}" data-pt="{{ label_pt }}">{{ label_en }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>
+                        <span data-en="Note, optional" data-pt="Observação, opcional">Note, optional</span>
+                        <textarea name="note" rows="2" maxlength="500"></textarea>
+                    </label>
+                    <button class="button button-primary" type="submit" data-en="Confirm archive" data-pt="Confirmar arquivamento">Confirm archive</button>
+                </form>
+            </details>
             {% else %}
             <form action="/jobs/{{ job['id'] }}/restore" method="post">
                 <input type="hidden" name="return_to" value="{{ request.url.path }}">
@@ -30,6 +48,7 @@
             </form>
             {% endif %}
         </div>
+        {% if job['archive_note'] %}<p class="archive-note">{{ job['archive_note'] }}</p>{% endif %}
     </article>
     {% else %}
     <div class="empty-state">
@@ -39,4 +58,3 @@
     </div>
     {% endfor %}
 </div>
-

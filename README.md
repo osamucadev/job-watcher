@@ -21,6 +21,7 @@ The first functional version is available. It includes the InHire collector, per
 - Overview of new and highlighted opportunities
 - Complete active job listing
 - Manual job archiving and restoration
+- Required archive reasons with an optional personal note
 - Automatic archiving when a job disappears from its source
 - Dedicated archive with indefinite history
 - Company source management from the interface
@@ -103,6 +104,8 @@ The interface language is independent for each browser profile and is stored onl
 - New jobs are marked during the check in which they are discovered.
 - Jobs missing from a successful source collection are archived, never deleted.
 - Jobs that return after source archiving are restored and marked as reopened.
+- Manually archived jobs record a reason and may include a personal note.
+- Manual reasons include already applied, no interest, work arrangement, requirements, compensation, closed applications, and other.
 - Manually archived jobs remain archived while their source stays active.
 - Removing a company stops monitoring and archives its active jobs while preserving history.
 

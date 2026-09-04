@@ -96,7 +96,9 @@ CREATE TABLE IF NOT EXISTS jobs (
     title TEXT NOT NULL,
     url TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
+    archive_source TEXT,
     archive_reason TEXT,
+    archive_note TEXT,
     is_highlighted INTEGER NOT NULL DEFAULT 0,
     is_new INTEGER NOT NULL DEFAULT 0,
     first_seen_at TEXT NOT NULL,
@@ -165,6 +167,7 @@ def initialize_database(database_path: Path | None = None) -> None:
     now = utc_now()
     with connection(database_path) as database:
         database.executescript(SCHEMA)
+        _migrate_jobs_archive_fields(database)
         database.execute(
             "INSERT OR IGNORE INTO settings(key, value, updated_at) VALUES (?, ?, ?)",
             ("highlight_keywords", json.dumps(DEFAULT_KEYWORDS, ensure_ascii=False), now),
@@ -177,6 +180,22 @@ def initialize_database(database_path: Path | None = None) -> None:
             [(name, url, now, now) for name, url in SEED_COMPANIES],
         )
         database.execute("PRAGMA optimize")
+
+
+def _migrate_jobs_archive_fields(database: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in database.execute("PRAGMA table_info(jobs)")}
+    if "archive_source" not in columns:
+        database.execute("ALTER TABLE jobs ADD COLUMN archive_source TEXT")
+    if "archive_note" not in columns:
+        database.execute("ALTER TABLE jobs ADD COLUMN archive_note TEXT")
+    database.execute(
+        """
+        UPDATE jobs
+        SET archive_source = CASE archive_reason WHEN 'source' THEN 'source' ELSE 'manual' END,
+            archive_reason = CASE archive_reason WHEN 'source' THEN 'source_removed' ELSE NULL END
+        WHERE status = 'archived' AND archive_source IS NULL
+        """
+    )
 
 
 def fetch_all(query: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
@@ -210,4 +229,3 @@ def set_keywords(keywords: list[str]) -> None:
         """,
         ("highlight_keywords", json.dumps(keywords, ensure_ascii=False), utc_now()),
     )
-

@@ -49,7 +49,7 @@ def process_company_snapshot(
         for job in jobs:
             seen_ids.append(job.external_id)
             existing = database.execute(
-                "SELECT id, status, archive_reason FROM jobs WHERE company_id = ? AND external_id = ?",
+                "SELECT id, status, archive_source FROM jobs WHERE company_id = ? AND external_id = ?",
                 (company_id, job.external_id),
             ).fetchone()
             highlighted = int(is_highlighted(job.title, keywords))
@@ -75,12 +75,13 @@ def process_company_snapshot(
                         now,
                     ),
                 )
-            elif existing["status"] == "archived" and existing["archive_reason"] == "source":
+            elif existing["status"] == "archived" and existing["archive_source"] == "source":
                 new_count += 1
                 database.execute(
                     """
                     UPDATE jobs
-                    SET title = ?, url = ?, status = 'active', archive_reason = NULL,
+                    SET title = ?, url = ?, status = 'active', archive_source = NULL,
+                        archive_reason = NULL, archive_note = NULL,
                         is_highlighted = ?, is_new = 1, last_seen_at = ?,
                         archived_at = NULL, reopened_at = ?
                     WHERE id = ?
@@ -109,7 +110,9 @@ def process_company_snapshot(
             database.execute(
                 """
                 UPDATE jobs
-                SET status = 'archived', archive_reason = 'source', archived_at = ?, is_new = 0
+                SET status = 'archived', archive_source = 'source',
+                    archive_reason = 'source_removed', archive_note = NULL,
+                    archived_at = ?, is_new = 0
                 WHERE id = ?
                 """,
                 (now, row["id"]),
@@ -239,4 +242,3 @@ class JobMonitor:
 
 
 monitor = JobMonitor()
-

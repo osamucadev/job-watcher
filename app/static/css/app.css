@@ -250,6 +250,26 @@ a { color: inherit; }
 .tag-reopened { background: var(--pink); color: white; }
 .tag-muted { color: var(--paper); background: var(--surface-soft); }
 .job-actions { display: flex; align-items: center; gap: 8px; padding: 20px; }
+.archive-menu { position: relative; }
+.archive-menu > summary { list-style: none; }
+.archive-menu > summary::-webkit-details-marker { display: none; }
+.archive-form {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 290px;
+    display: grid;
+    gap: 13px;
+    padding: 18px;
+    color: var(--paper);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 30px rgba(34, 79, 91, 0.16);
+}
+.archive-form label > span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.archive-form select, .archive-form textarea { width: 100%; padding: 9px; color: var(--paper); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 0; }
+.archive-note { grid-column: 2 / -1; margin: 0 20px 16px; padding: 10px 12px; color: var(--muted); background: var(--surface-soft); font-size: 12px; }
 
 .empty-state { min-height: 310px; display: grid; place-content: center; text-align: center; background: var(--surface); }
 .empty-state h2 { margin: 5px 0; font-size: 28px; font-weight: 500; }

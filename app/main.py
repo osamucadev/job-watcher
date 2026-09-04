@@ -28,6 +28,27 @@ app = FastAPI(title=APP_NAME, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
+ARCHIVE_REASONS = (
+    ("applied", "Already applied", "Já me candidatei"),
+    ("not_interested", "Not interested", "Não tenho interesse"),
+    ("onsite", "On-site role", "Vaga presencial"),
+    ("hybrid", "Hybrid role", "Vaga híbrida"),
+    ("remote", "Remote role", "Vaga remota"),
+    ("requirements", "Requirements do not match", "Requisitos incompatíveis"),
+    ("compensation", "Compensation or conditions", "Remuneração ou condições"),
+    ("closed", "Applications closed", "Inscrições encerradas"),
+    ("other", "Other", "Outro"),
+)
+ARCHIVE_REASON_SLUGS = {reason[0] for reason in ARCHIVE_REASONS}
+ARCHIVE_REASON_LABELS = {
+    slug: {"en": label_en, "pt": label_pt}
+    for slug, label_en, label_pt in ARCHIVE_REASONS
+}
+ARCHIVE_REASON_LABELS["source_removed"] = {
+    "en": "Removed at source",
+    "pt": "Removida na origem",
+}
+
 
 def common_context(request: Request, section: str) -> dict[str, object]:
     last_run = fetch_one(
@@ -38,6 +59,8 @@ def common_context(request: Request, section: str) -> dict[str, object]:
         "section": section,
         "last_run": last_run,
         "monitor_running": monitor.is_running,
+        "archive_reasons": ARCHIVE_REASONS,
+        "archive_reason_labels": ARCHIVE_REASON_LABELS,
     }
 
 
@@ -120,15 +143,22 @@ async def archived_jobs(request: Request):
 
 
 @app.post("/jobs/{job_id}/archive")
-async def archive_job(job_id: int, return_to: str = Form("/jobs")):
+async def archive_job(
+    job_id: int,
+    reason: str = Form(...),
+    note: str = Form(""),
+    return_to: str = Form("/jobs"),
+):
+    if reason not in ARCHIVE_REASON_SLUGS:
+        raise HTTPException(status_code=422, detail="Invalid archive reason")
     with connection() as database:
         cursor = database.execute(
             """
-            UPDATE jobs SET status = 'archived', archive_reason = 'manual',
-                archived_at = ?, is_new = 0
+            UPDATE jobs SET status = 'archived', archive_source = 'manual',
+                archive_reason = ?, archive_note = ?, archived_at = ?, is_new = 0
             WHERE id = ?
             """,
-            (utc_now(), job_id),
+            (reason, note.strip()[:500] or None, utc_now(), job_id),
         )
         if not cursor.rowcount:
             raise HTTPException(status_code=404)
@@ -140,8 +170,8 @@ async def restore_job(job_id: int, return_to: str = Form("/jobs/archived")):
     with connection() as database:
         cursor = database.execute(
             """
-            UPDATE jobs SET status = 'active', archive_reason = NULL,
-                archived_at = NULL, reopened_at = ?
+            UPDATE jobs SET status = 'active', archive_source = NULL,
+                archive_reason = NULL, archive_note = NULL, archived_at = NULL, reopened_at = ?
             WHERE id = ?
             """,
             (utc_now(), job_id),
@@ -216,7 +246,9 @@ async def remove_company(company_id: int):
         )
         database.execute(
             """
-            UPDATE jobs SET status = 'archived', archive_reason = 'source', archived_at = ?, is_new = 0
+            UPDATE jobs SET status = 'archived', archive_source = 'source',
+                archive_reason = 'source_removed', archive_note = NULL,
+                archived_at = ?, is_new = 0
             WHERE company_id = ? AND status = 'active'
             """,
             (now, company_id),

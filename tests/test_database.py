@@ -21,6 +21,32 @@ class DatabaseTests(unittest.TestCase):
             self.assertEqual(companies, len(SEED_COMPANIES))
             self.assertEqual(settings, 1)
 
+    def test_migrates_legacy_archive_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy.db"
+            initialize_database(path)
+            with connection(path) as database:
+                company_id = database.execute("SELECT id FROM companies LIMIT 1").fetchone()[0]
+                database.execute(
+                    """
+                    INSERT INTO jobs(
+                        company_id, external_id, title, url, status, archive_reason,
+                        first_seen_at, last_seen_at
+                    ) VALUES (?, 'legacy', 'Legacy job', 'https://example.test', 'archived', 'manual', 'now', 'now')
+                    """,
+                    (company_id,),
+                )
+                database.execute("UPDATE jobs SET archive_source = NULL WHERE external_id = 'legacy'")
+
+            initialize_database(path)
+            with connection(path) as database:
+                job = database.execute(
+                    "SELECT archive_source, archive_reason FROM jobs WHERE external_id = 'legacy'"
+                ).fetchone()
+
+            self.assertEqual(job["archive_source"], "manual")
+            self.assertIsNone(job["archive_reason"])
+
 
 if __name__ == "__main__":
     unittest.main()

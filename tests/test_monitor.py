@@ -59,10 +59,11 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(new_count, 1)
         with connection(self.path) as database:
             restored = database.execute(
-                "SELECT status, reopened_at FROM jobs WHERE external_id = 'one'"
+                "SELECT status, reopened_at, archive_source FROM jobs WHERE external_id = 'one'"
             ).fetchone()
         self.assertEqual(restored["status"], "active")
         self.assertIsNotNone(restored["reopened_at"])
+        self.assertIsNone(restored["archive_source"])
 
 
 if __name__ == "__main__":

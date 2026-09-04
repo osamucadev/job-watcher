@@ -53,8 +53,8 @@ The interface will draw inspiration from the Windows 8 Metro design language:
 
 - Square corners and rectangular tiles
 - Flat, high contrast color areas
-- Dark navy and purple foundation
-- Yellow primary accent
+- Light neutral canvas and white panels
+- Teal, turquoise, pink, coral, yellow, and purple flat color blocks
 - Strong typography
 - Minimal decoration and restrained motion
 

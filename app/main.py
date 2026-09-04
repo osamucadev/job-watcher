@@ -41,6 +41,10 @@ def common_context(request: Request, section: str) -> dict[str, object]:
     }
 
 
+def safe_return_path(value: str, fallback: str) -> str:
+    return value if value.startswith("/") and not value.startswith("//") else fallback
+
+
 def jobs_for(view: str) -> list[object]:
     predicates = {
         "all": "j.status = 'active'",
@@ -128,7 +132,7 @@ async def archive_job(job_id: int, return_to: str = Form("/jobs")):
         )
         if not cursor.rowcount:
             raise HTTPException(status_code=404)
-    return RedirectResponse(return_to, status_code=303)
+    return RedirectResponse(safe_return_path(return_to, "/jobs"), status_code=303)
 
 
 @app.post("/jobs/{job_id}/restore")
@@ -144,7 +148,7 @@ async def restore_job(job_id: int, return_to: str = Form("/jobs/archived")):
         )
         if not cursor.rowcount:
             raise HTTPException(status_code=404)
-    return RedirectResponse(return_to, status_code=303)
+    return RedirectResponse(safe_return_path(return_to, "/jobs/archived"), status_code=303)
 
 
 @app.get("/companies")
@@ -168,7 +172,12 @@ async def add_company(name: str = Form(...), url: str = Form(...)):
     clean_name = name.strip()
     clean_url = url.strip().rstrip("/")
     parsed = urlparse(clean_url)
-    if not clean_name or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+    hostname = (parsed.hostname or "").casefold()
+    if (
+        not clean_name
+        or parsed.scheme not in {"http", "https"}
+        or not hostname.endswith(".inhire.app")
+    ):
         return RedirectResponse("/companies?message=invalid", status_code=303)
     now = utc_now()
     with connection() as database:
@@ -233,10 +242,9 @@ async def update_keywords(keywords: str = Form("")):
 async def run_check(return_to: str = Form("/")):
     if not monitor.is_running:
         asyncio.create_task(monitor.run())
-    return RedirectResponse(return_to, status_code=303)
+    return RedirectResponse(safe_return_path(return_to, "/"), status_code=303)
 
 
 @app.get("/healthz")
 async def healthcheck():
     return {"status": "ok", "time": datetime.now(UTC).isoformat()}
-

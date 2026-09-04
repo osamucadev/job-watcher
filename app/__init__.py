@@ -1,0 +1,2 @@
+"""Job Watcher application package."""
+

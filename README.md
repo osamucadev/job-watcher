@@ -6,9 +6,9 @@ The first supported platform will be InHire. The project will be structured so t
 
 ## Status
 
-Job Watcher is currently in the product definition stage. No application implementation has started yet.
+The first functional version is available. It includes the InHire collector, persistent history, scheduled checks, a bilingual local dashboard, company management, profile highlights, and job archiving.
 
-## Planned experience
+## Experience
 
 - Local browser based dashboard
 - English interface by default
@@ -36,7 +36,7 @@ Weekends and holidays are included. If the computer is unavailable during one or
 
 The first successful collection creates the baseline. Jobs already present during that collection will not be marked as new.
 
-## Planned technology
+## Technology
 
 - Python
 - FastAPI
@@ -62,6 +62,52 @@ The logo and favicon will use an original geometric symbol. They will not use in
 
 ## Local deployment
 
-The application will run with Docker Compose on Ubuntu and restart automatically with Docker. A high, uncommon host port will be selected after checking which ports are already in use.
+The application runs with Docker Compose on Ubuntu and restarts automatically with Docker. It binds only to the local computer by default.
 
-Setup and usage instructions will be added when the first working version is implemented.
+### Start
+
+```bash
+docker compose up -d --build
+```
+
+Open [http://localhost:17843](http://localhost:17843) in a browser.
+
+The first collection starts automatically and creates the baseline. With 30 sources, it can take a few minutes. Refresh the dashboard to see collected jobs.
+
+### Stop
+
+```bash
+docker compose down
+```
+
+The database remains in the `job-watcher-data` Docker volume.
+
+### Configuration
+
+Copy `.env.example` to `.env` only when you want to change the local port or timezone.
+
+```dotenv
+JOB_WATCHER_PORT=17843
+JOB_WATCHER_TIMEZONE=America/Sao_Paulo
+```
+
+The interface language is independent for each browser profile and is stored only in browser localStorage.
+
+## Data behavior
+
+- The first successful check for each company creates its baseline.
+- New jobs are marked during the check in which they are discovered.
+- Jobs missing from a successful source collection are archived, never deleted.
+- Jobs that return after source archiving are restored and marked as reopened.
+- Manually archived jobs remain archived while their source stays active.
+- Removing a company stops monitoring and archives its active jobs while preserving history.
+
+## Development
+
+Run the test suite with:
+
+```bash
+python -m unittest discover -v
+```
+
+The application intentionally uses one server worker because the scheduler runs inside the web process. This prevents duplicate scheduled checks.

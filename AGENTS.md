@@ -52,7 +52,8 @@
 
 ## Initial experience
 
-- Provide pages for overview, all jobs, highlighted jobs, archived jobs, companies, and settings.
+- Provide pages for overview, all jobs, highlighted jobs, archived jobs, companies, settings, and activity.
+- The activity page shows the live progress of a running check, recent check history, and the last result per company. It states plainly that the rest of the app stays usable during a check.
 - Allow users to add, pause, edit, and remove company source links.
 - Open source job links in a new browser tab.
 - Do not add filtering in the initial version.

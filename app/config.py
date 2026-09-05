@@ -15,3 +15,8 @@ TIMEZONE = os.getenv("JOB_WATCHER_TIMEZONE", "America/Sao_Paulo")
 SCHEDULE_HOURS = (9, 12, 15, 18)
 PAGE_SIZE = 20
 
+# A running check with no heartbeat for this many seconds is treated as stalled.
+STALE_RUN_SECONDS = 180
+# How many past checks the activity page lists.
+ACTIVITY_HISTORY_LIMIT = 20
+

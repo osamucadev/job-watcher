@@ -54,6 +54,11 @@ async def start_scheduler() -> None:
         asyncio.create_task(monitor.run())
 
 
+def next_scheduled_run() -> datetime | None:
+    job = scheduler.get_job("scheduled-job-check")
+    return getattr(job, "next_run_time", None) if job else None
+
+
 def stop_scheduler() -> None:
     if scheduler.running:
         scheduler.shutdown(wait=False)

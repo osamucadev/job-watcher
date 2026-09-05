@@ -5,6 +5,5 @@ __pycache__/
 .env
 data/*.db
 data/*.db-*
-playwright-report/
-test-results/
+backups/
 

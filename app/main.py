@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config import APP_NAME, STATIC_DIR, TEMPLATES_DIR
+from app.config import APP_NAME, PAGE_SIZE, STATIC_DIR, TEMPLATES_DIR
 from app.database import connection, fetch_all, fetch_one, get_keywords, initialize_database, set_keywords, utc_now
 from app.services.monitor import monitor
+from app.services.pagination import normalize_page, page_sequence
 from app.services.scheduler import start_scheduler, stop_scheduler
 
 
@@ -75,23 +77,73 @@ def wants_json(request: Request) -> bool:
     return "application/json" in request.headers.get("accept", "")
 
 
-def jobs_for(view: str) -> list[object]:
-    predicates = {
-        "all": "j.status = 'active'",
-        "highlighted": "j.status = 'active' AND j.is_highlighted = 1",
-        "archived": "j.status = 'archived'",
-    }
-    if view not in predicates:
+JOB_VIEW_PREDICATES = {
+    "all": "j.status = 'active'",
+    "highlighted": "j.status = 'active' AND j.is_highlighted = 1",
+    "archived": "j.status = 'archived'",
+}
+
+
+def jobs_predicate(view: str) -> str:
+    if view not in JOB_VIEW_PREDICATES:
         raise HTTPException(status_code=404)
+    return JOB_VIEW_PREDICATES[view]
+
+
+def count_jobs_for(view: str) -> int:
+    predicate = jobs_predicate(view)
+    row = fetch_one(f"SELECT COUNT(*) AS total FROM jobs j WHERE {predicate}")
+    return row["total"]
+
+
+def jobs_for(view: str, *, limit: int, offset: int) -> list[object]:
+    predicate = jobs_predicate(view)
     return fetch_all(
         f"""
         SELECT j.*, c.name AS company_name
         FROM jobs j
         JOIN companies c ON c.id = j.company_id
-        WHERE {predicates[view]}
+        WHERE {predicate}
         ORDER BY j.is_new DESC, j.first_seen_at DESC, j.title COLLATE NOCASE
-        """
+        LIMIT ? OFFSET ?
+        """,
+        (limit, offset),
     )
+
+
+def page_url(request: Request, page: int) -> str:
+    params = dict(request.query_params)
+    params["page"] = str(page)
+    return f"{request.url.path}?{urlencode(params)}"
+
+
+def build_pagination(request: Request, page: int, total_pages: int, total_count: int) -> dict[str, object] | None:
+    if total_pages <= 1:
+        return None
+    entries = []
+    for entry in page_sequence(page, total_pages):
+        if entry == "…":
+            entries.append({"kind": "ellipsis"})
+        else:
+            entries.append({"kind": "page", "number": entry, "url": page_url(request, entry)})
+    return {"current": page, "total_pages": total_pages, "total_count": total_count, "entries": entries}
+
+
+def paginated_jobs_response(request: Request, view: str, section: str):
+    total_count = count_jobs_for(view)
+    total_pages = math.ceil(total_count / PAGE_SIZE) if total_count else 0
+    page = normalize_page(request.query_params.get("page"), total_pages)
+    offset = (page - 1) * PAGE_SIZE
+    jobs = jobs_for(view, limit=PAGE_SIZE, offset=offset)
+
+    context = common_context(request, section)
+    context.update(
+        jobs=jobs,
+        view=view,
+        total_count=total_count,
+        pagination=build_pagination(request, page, total_pages, total_count),
+    )
+    return templates.TemplateResponse("jobs.html", context)
 
 
 @app.get("/")
@@ -130,23 +182,17 @@ async def dashboard(request: Request):
 
 @app.get("/jobs")
 async def all_jobs(request: Request):
-    context = common_context(request, "jobs")
-    context.update(jobs=jobs_for("all"), view="all")
-    return templates.TemplateResponse("jobs.html", context)
+    return paginated_jobs_response(request, "all", "jobs")
 
 
 @app.get("/jobs/highlighted")
 async def highlighted_jobs(request: Request):
-    context = common_context(request, "highlighted")
-    context.update(jobs=jobs_for("highlighted"), view="highlighted")
-    return templates.TemplateResponse("jobs.html", context)
+    return paginated_jobs_response(request, "highlighted", "highlighted")
 
 
 @app.get("/jobs/archived")
 async def archived_jobs(request: Request):
-    context = common_context(request, "archived")
-    context.update(jobs=jobs_for("archived"), view="archived")
-    return templates.TemplateResponse("jobs.html", context)
+    return paginated_jobs_response(request, "archived", "archived")
 
 
 @app.post("/jobs/{job_id}/archive")

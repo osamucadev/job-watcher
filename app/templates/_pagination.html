@@ -1,0 +1,13 @@
+{% if pagination %}
+<nav class="pagination" aria-label="Pagination">
+    {% for item in pagination.entries %}
+    {% if item.kind == 'ellipsis' %}
+    <span class="pagination-ellipsis" aria-hidden="true">…</span>
+    {% elif item.number == pagination.current %}
+    <span class="pagination-item is-current" aria-current="page">{{ item.number }}</span>
+    {% else %}
+    <a class="pagination-item" href="{{ item.url }}">{{ item.number }}</a>
+    {% endif %}
+    {% endfor %}
+</nav>
+{% endif %}

@@ -254,10 +254,24 @@
     return null;
   };
 
+  // If archiving/applying just removed the last row on a paginated listing
+  // page other than the first, step back one page instead of leaving the
+  // user stranded on a now-empty page.
+  const stepBackAPageIfEmpty = () => {
+    if (document.querySelectorAll(".job-row").length > 0) return;
+    const url = new URL(window.location.href);
+    const currentPage = parseInt(url.searchParams.get("page") || "1", 10);
+    if (currentPage > 1) {
+      url.searchParams.set("page", String(currentPage - 1));
+      window.location.href = url.toString();
+    }
+  };
+
   const animateRowRemoval = (row) => {
     if (!row) return;
     if (prefersReducedMotion()) {
       row.remove();
+      stepBackAPageIfEmpty();
       return;
     }
     const startHeight = row.offsetHeight;
@@ -268,7 +282,10 @@
     window.setTimeout(() => {
       row.classList.add("is-collapsing");
       row.style.height = "0px";
-      window.setTimeout(() => row.remove(), ROW_COLLAPSE_PHASE_MS);
+      window.setTimeout(() => {
+        row.remove();
+        stepBackAPageIfEmpty();
+      }, ROW_COLLAPSE_PHASE_MS);
     }, ROW_LEAVE_PHASE_MS);
   };
 

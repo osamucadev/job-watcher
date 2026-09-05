@@ -13,4 +13,5 @@ DATA_DIR = Path(os.getenv("JOB_WATCHER_DATA_DIR", PROJECT_DIR / "data"))
 DATABASE_PATH = Path(os.getenv("JOB_WATCHER_DATABASE", DATA_DIR / "job-watcher.db"))
 TIMEZONE = os.getenv("JOB_WATCHER_TIMEZONE", "America/Sao_Paulo")
 SCHEDULE_HOURS = (9, 12, 15, 18)
+PAGE_SIZE = 20
 

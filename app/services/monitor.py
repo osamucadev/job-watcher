@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 
 from app.config import DATABASE_PATH
-from app.database import connection, get_keywords, utc_now
+from app.database import connection, get_keywords, record_run_progress, utc_now
 from app.services.inhire import (
     MAX_CONCURRENCY,
     REQUEST_TIMEOUT,
@@ -145,13 +145,70 @@ def _keywords_from(database_path: Path) -> list[str]:
     return json.loads(row["value"]) if row else []
 
 
+COMPANY_PENDING = "pending"
+COMPANY_COLLECTING = "collecting"
+COMPANY_DONE = "done"
+COMPANY_ERROR = "error"
+
+
+class RunProgress:
+    """In-memory view of the active check, read by the activity page.
+
+    Only the event loop task tree touches this, so it needs no lock. It is
+    discarded when the run ends; finished runs are read back from check_runs.
+    """
+
+    def __init__(self, run_id: int, started_at: str, company_names: list[str]) -> None:
+        self.run_id = run_id
+        self.started_at = started_at
+        self.updated_at = started_at
+        self.companies: dict[str, dict[str, object]] = {
+            name: {"state": COMPANY_PENDING, "jobs": None} for name in company_names
+        }
+
+    def mark(self, name: str, state: str, *, jobs: int | None = None) -> None:
+        entry = self.companies.get(name)
+        if entry is None:
+            return
+        entry["state"] = state
+        if jobs is not None:
+            entry["jobs"] = jobs
+        self.updated_at = utc_now()
+
+    def as_dict(self) -> dict[str, object]:
+        counts = {
+            COMPANY_PENDING: 0,
+            COMPANY_COLLECTING: 0,
+            COMPANY_DONE: 0,
+            COMPANY_ERROR: 0,
+        }
+        for entry in self.companies.values():
+            counts[str(entry["state"])] += 1
+        return {
+            "run_id": self.run_id,
+            "started_at": self.started_at,
+            "updated_at": self.updated_at,
+            "total": len(self.companies),
+            "settled": counts[COMPANY_DONE] + counts[COMPANY_ERROR],
+            "counts": counts,
+            "companies": [
+                {"name": name, "state": entry["state"], "jobs": entry["jobs"]}
+                for name, entry in self.companies.items()
+            ],
+        }
+
+
 class JobMonitor:
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
+        self._progress: RunProgress | None = None
 
     @property
     def is_running(self) -> bool:
         return self._lock.locked()
+
+    def snapshot(self) -> dict[str, object] | None:
+        return self._progress.as_dict() if self._progress is not None else None
 
     async def run(self) -> None:
         if self._lock.locked():
@@ -159,7 +216,10 @@ class JobMonitor:
             return
 
         async with self._lock:
-            await self._run_locked()
+            try:
+                await self._run_locked()
+            finally:
+                self._progress = None
 
     async def _run_locked(self) -> None:
         started_at = utc_now()
@@ -174,13 +234,14 @@ class JobMonitor:
             ).fetchall()
             cursor = database.execute(
                 """
-                INSERT INTO check_runs(started_at, status, companies_total)
-                VALUES (?, 'running', ?)
+                INSERT INTO check_runs(started_at, heartbeat_at, status, companies_total)
+                VALUES (?, ?, 'running', ?)
                 """,
-                (started_at, len(companies)),
+                (started_at, started_at, len(companies)),
             )
             run_id = cursor.lastrowid
 
+        self._progress = RunProgress(run_id, started_at, [company["name"] for company in companies])
         totals = {"checked": 0, "found": 0, "new": 0, "archived": 0}
         errors: list[str] = []
 
@@ -196,24 +257,37 @@ class JobMonitor:
 
                 async def collect(company: object) -> None:
                     async with semaphore:
+                        self._progress.mark(company["name"], COMPANY_COLLECTING)
                         try:
                             jobs = await collect_company(client, company["url"])
                             new_count, archived_count = await asyncio.to_thread(
                                 process_company_snapshot, company["id"], jobs
                             )
-                            totals["checked"] += 1
-                            totals["found"] += len(jobs)
-                            totals["new"] += new_count
-                            totals["archived"] += archived_count
                         except Exception as error:
                             message = f"{company['name']}: {error}"
                             logger.warning("Failed to collect %s: %s", company["name"], error)
                             errors.append(message)
+                            self._progress.mark(company["name"], COMPANY_ERROR)
                             with connection() as database:
                                 database.execute(
                                     "UPDATE companies SET last_error = ?, updated_at = ? WHERE id = ?",
                                     (str(error)[:500], utc_now(), company["id"]),
                                 )
+                            await asyncio.to_thread(record_run_progress, run_id)
+                            return
+                        totals["checked"] += 1
+                        totals["found"] += len(jobs)
+                        totals["new"] += new_count
+                        totals["archived"] += archived_count
+                        self._progress.mark(company["name"], COMPANY_DONE, jobs=len(jobs))
+                        await asyncio.to_thread(
+                            record_run_progress,
+                            run_id,
+                            checked=1,
+                            found=len(jobs),
+                            new=new_count,
+                            archived=archived_count,
+                        )
 
                 await asyncio.gather(*(collect(company) for company in companies))
 
@@ -222,20 +296,10 @@ class JobMonitor:
                 database.execute(
                     """
                     UPDATE check_runs
-                    SET finished_at = ?, status = ?, companies_checked = ?, jobs_found = ?,
-                        jobs_new = ?, jobs_archived = ?, error = ?
+                    SET finished_at = ?, heartbeat_at = ?, status = ?, error = ?
                     WHERE id = ?
                     """,
-                    (
-                        utc_now(),
-                        status,
-                        totals["checked"],
-                        totals["found"],
-                        totals["new"],
-                        totals["archived"],
-                        "\n".join(errors)[:4000] or None,
-                        run_id,
-                    ),
+                    (utc_now(), utc_now(), status, "\n".join(errors)[:4000] or None, run_id),
                 )
         except Exception as error:
             logger.exception("Monitoring run failed")

@@ -114,6 +114,7 @@ CREATE TABLE IF NOT EXISTS check_runs (
     id INTEGER PRIMARY KEY,
     started_at TEXT NOT NULL,
     finished_at TEXT,
+    heartbeat_at TEXT,
     status TEXT NOT NULL,
     companies_total INTEGER NOT NULL DEFAULT 0,
     companies_checked INTEGER NOT NULL DEFAULT 0,
@@ -171,6 +172,7 @@ def initialize_database(database_path: Path | None = None) -> None:
         database.executescript(SCHEMA)
         _migrate_jobs_archive_fields(database)
         _migrate_jobs_visit_fields(database)
+        _migrate_check_runs_heartbeat(database)
         database.execute(
             "INSERT OR IGNORE INTO settings(key, value, updated_at) VALUES (?, ?, ?)",
             ("highlight_keywords", json.dumps(DEFAULT_KEYWORDS, ensure_ascii=False), now),
@@ -207,6 +209,58 @@ def _migrate_jobs_visit_fields(database: sqlite3.Connection) -> None:
         database.execute("ALTER TABLE jobs ADD COLUMN first_visited_at TEXT")
     if "last_visited_at" not in columns:
         database.execute("ALTER TABLE jobs ADD COLUMN last_visited_at TEXT")
+
+
+def _migrate_check_runs_heartbeat(database: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in database.execute("PRAGMA table_info(check_runs)")}
+    if "heartbeat_at" not in columns:
+        database.execute("ALTER TABLE check_runs ADD COLUMN heartbeat_at TEXT")
+
+
+def mark_interrupted_runs(database_path: Path | None = None) -> int:
+    """Close out any check run still marked running from a previous process.
+
+    A single web worker owns the scheduler, so when the app starts no check can
+    genuinely be in progress. Any leftover running row means the process died
+    mid-run; mark it failed so the activity page never shows a phantom run.
+    """
+    now = utc_now()
+    with connection(database_path) as database:
+        cursor = database.execute(
+            """
+            UPDATE check_runs
+            SET status = 'failed', finished_at = ?,
+                error = COALESCE(error, 'Interrupted before completion')
+            WHERE status = 'running'
+            """,
+            (now,),
+        )
+        return cursor.rowcount
+
+
+def record_run_progress(
+    run_id: int,
+    *,
+    checked: int = 0,
+    found: int = 0,
+    new: int = 0,
+    archived: int = 0,
+    database_path: Path | None = None,
+) -> None:
+    """Fold one company's result into its check run and refresh the heartbeat."""
+    with connection(database_path) as database:
+        database.execute(
+            """
+            UPDATE check_runs
+            SET heartbeat_at = ?,
+                companies_checked = companies_checked + ?,
+                jobs_found = jobs_found + ?,
+                jobs_new = jobs_new + ?,
+                jobs_archived = jobs_archived + ?
+            WHERE id = ?
+            """,
+            (utc_now(), checked, found, new, archived, run_id),
+        )
 
 
 def fetch_all(query: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:

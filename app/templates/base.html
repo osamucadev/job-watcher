@@ -74,5 +74,37 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    <dialog id="archive-modal" class="modal" aria-labelledby="archive-modal-title">
+        <form class="modal-box" id="archive-modal-form" novalidate>
+            <div class="modal-head">
+                <h2 id="archive-modal-title" data-en="Archive job" data-pt="Arquivar vaga">Archive job</h2>
+                <button type="button" class="modal-close" data-action="cancel" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <p class="modal-subject" id="archive-modal-subject"></p>
+            <label>
+                <span data-en="Reason" data-pt="Motivo">Reason</span>
+                <select name="reason" id="archive-modal-reason" required>
+                    <option value="" disabled selected data-en="Choose a reason" data-pt="Escolha um motivo">Choose a reason</option>
+                    {% for slug, label_en, label_pt in archive_reasons %}
+                    <option value="{{ slug }}" data-en="{{ label_en }}" data-pt="{{ label_pt }}">{{ label_en }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span data-en="Note, optional" data-pt="Observação, opcional">Note, optional</span>
+                <textarea name="note" id="archive-modal-note" rows="3" maxlength="500"></textarea>
+            </label>
+            <p class="modal-error" id="archive-modal-error" role="alert" hidden data-en="Something went wrong. Try again." data-pt="Algo deu errado. Tente novamente.">Something went wrong. Try again.</p>
+            <div class="modal-actions">
+                <button type="button" class="button button-quiet" data-action="cancel" data-en="Cancel" data-pt="Cancelar">Cancel</button>
+                <button type="submit" class="button button-primary" id="archive-modal-confirm" data-en="Confirm archive" data-pt="Confirmar arquivamento">Confirm archive</button>
+            </div>
+        </form>
+    </dialog>
+
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
 </body>
 </html>

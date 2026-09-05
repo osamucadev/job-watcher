@@ -105,6 +105,8 @@ CREATE TABLE IF NOT EXISTS jobs (
     last_seen_at TEXT NOT NULL,
     archived_at TEXT,
     reopened_at TEXT,
+    first_visited_at TEXT,
+    last_visited_at TEXT,
     UNIQUE(company_id, external_id)
 );
 
@@ -168,6 +170,7 @@ def initialize_database(database_path: Path | None = None) -> None:
     with connection(database_path) as database:
         database.executescript(SCHEMA)
         _migrate_jobs_archive_fields(database)
+        _migrate_jobs_visit_fields(database)
         database.execute(
             "INSERT OR IGNORE INTO settings(key, value, updated_at) VALUES (?, ?, ?)",
             ("highlight_keywords", json.dumps(DEFAULT_KEYWORDS, ensure_ascii=False), now),
@@ -196,6 +199,14 @@ def _migrate_jobs_archive_fields(database: sqlite3.Connection) -> None:
         WHERE status = 'archived' AND archive_source IS NULL
         """
     )
+
+
+def _migrate_jobs_visit_fields(database: sqlite3.Connection) -> None:
+    columns = {row["name"] for row in database.execute("PRAGMA table_info(jobs)")}
+    if "first_visited_at" not in columns:
+        database.execute("ALTER TABLE jobs ADD COLUMN first_visited_at TEXT")
+    if "last_visited_at" not in columns:
+        database.execute("ALTER TABLE jobs ADD COLUMN last_visited_at TEXT")
 
 
 def fetch_all(query: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:

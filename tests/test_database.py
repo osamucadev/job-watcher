@@ -47,6 +47,34 @@ class DatabaseTests(unittest.TestCase):
             self.assertEqual(job["archive_source"], "manual")
             self.assertIsNone(job["archive_reason"])
 
+    def test_adds_visit_columns_to_existing_database(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "legacy.db"
+            initialize_database(path)
+            with connection(path) as database:
+                database.execute("ALTER TABLE jobs DROP COLUMN first_visited_at")
+                database.execute("ALTER TABLE jobs DROP COLUMN last_visited_at")
+                company_id = database.execute("SELECT id FROM companies LIMIT 1").fetchone()[0]
+                database.execute(
+                    """
+                    INSERT INTO jobs(company_id, external_id, title, url, first_seen_at, last_seen_at)
+                    VALUES (?, 'legacy-job', 'Legacy Role', 'https://example.test', 'now', 'now')
+                    """,
+                    (company_id,),
+                )
+
+            initialize_database(path)
+            with connection(path) as database:
+                columns = {row["name"] for row in database.execute("PRAGMA table_info(jobs)")}
+                job = database.execute(
+                    "SELECT * FROM jobs WHERE external_id = 'legacy-job'"
+                ).fetchone()
+
+            self.assertIn("first_visited_at", columns)
+            self.assertIn("last_visited_at", columns)
+            self.assertEqual(job["title"], "Legacy Role")
+            self.assertIsNone(job["first_visited_at"])
+
 
 if __name__ == "__main__":
     unittest.main()

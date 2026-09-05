@@ -180,6 +180,8 @@ a { color: inherit; }
 .button-link { background: var(--blue); }
 .button-quiet { color: var(--paper); border-color: var(--line); background: var(--surface); }
 .button-danger { color: #ff9298; border-color: rgba(223, 77, 85, 0.45); background: transparent; }
+.button-positive { color: var(--paper); background: var(--surface); border-color: var(--cyan); }
+.button-positive:hover { background: rgba(55, 193, 188, 0.14); }
 .button-wide { width: 100%; }
 
 .tile-grid {
@@ -239,6 +241,8 @@ a { color: inherit; }
 .job-state { background: var(--ink-700); }
 .job-row.is-highlighted .job-state { background: var(--cyan); }
 .job-row.is-new .job-state { background: var(--yellow); }
+.job-row.is-last-opened { border-color: var(--purple); }
+.job-row.is-last-opened .job-state { background: var(--purple); }
 .job-copy { align-self: center; padding: 20px 24px; }
 .job-copy h2 { margin: 7px 0 6px; font-size: 18px; font-weight: 550; }
 .job-copy p { margin: 0; color: var(--muted); font-size: 11px; }
@@ -249,26 +253,9 @@ a { color: inherit; }
 .tag-highlight { background: var(--cyan); }
 .tag-reopened { background: var(--pink); color: white; }
 .tag-muted { color: var(--paper); background: var(--surface-soft); }
-.job-actions { display: flex; align-items: center; gap: 8px; padding: 20px; }
-.archive-menu { position: relative; }
-.archive-menu > summary { list-style: none; }
-.archive-menu > summary::-webkit-details-marker { display: none; }
-.archive-form {
-    position: absolute;
-    z-index: 20;
-    top: calc(100% + 6px);
-    right: 0;
-    width: 290px;
-    display: grid;
-    gap: 13px;
-    padding: 18px;
-    color: var(--paper);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    box-shadow: 0 12px 30px rgba(34, 79, 91, 0.16);
-}
-.archive-form label > span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
-.archive-form select, .archive-form textarea { width: 100%; padding: 9px; color: var(--paper); background: var(--surface-soft); border: 1px solid var(--line); border-radius: 0; }
+.tag-visited, .tag-last-opened { color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line); }
+.tag-last-opened { color: var(--paper); border-color: var(--purple); }
+.job-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 20px; }
 .archive-note { grid-column: 2 / -1; margin: 0 20px 16px; padding: 10px 12px; color: var(--muted); background: var(--surface-soft); font-size: 12px; }
 
 .empty-state { min-height: 310px; display: grid; place-content: center; text-align: center; background: var(--surface); }
@@ -314,6 +301,83 @@ a { color: inherit; }
 .time-grid strong { display: grid; place-items: center; aspect-ratio: 1; color: white; background: var(--purple); font-size: 25px; font-weight: 500; }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+dialog.modal {
+    padding: 0;
+    margin: auto;
+    color: var(--paper);
+    background: var(--surface);
+    border: none;
+    border-top: 5px solid var(--pink);
+    width: min(460px, calc(100vw - 40px));
+}
+dialog.modal::backdrop { background: rgba(23, 63, 73, 0.55); }
+.modal-box { display: grid; gap: 16px; padding: 26px; }
+.modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.modal-head h2 { margin: 0; font-size: 23px; font-weight: 500; }
+.modal-close {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: var(--paper);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+}
+.modal-close:hover { background: var(--surface-soft); }
+.modal-subject { margin: 0; padding: 11px 13px; color: var(--paper); background: var(--surface-soft); font-size: 13px; font-weight: 600; }
+.modal-box label > span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.modal-box select, .modal-box textarea {
+    width: 100%;
+    padding: 10px;
+    color: var(--paper);
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    border-radius: 0;
+}
+.modal-box textarea { resize: vertical; }
+.modal-error { margin: 0; padding: 9px 12px; color: #b8283f; background: rgba(214, 64, 88, 0.12); font-size: 12px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+.toast-region {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    display: grid;
+    gap: 10px;
+    width: min(360px, calc(100vw - 40px));
+}
+.toast {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 14px 16px;
+    color: white;
+    background: var(--ink-900);
+    border-left: 4px solid var(--yellow);
+}
+.toast p { margin: 0; font-size: 13px; }
+.toast-undo {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    color: var(--ink-950);
+    background: var(--yellow);
+    border: none;
+    border-radius: 0;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+.toast-undo:hover { filter: brightness(1.08); }
 
 @media (max-width: 1100px) {
     .tile-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }

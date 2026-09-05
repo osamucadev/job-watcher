@@ -1,6 +1,7 @@
 <div class="job-list">
     {% for job in jobs %}
-    <article class="job-row {% if job['is_new'] %}is-new{% endif %} {% if job['is_highlighted'] %}is-highlighted{% endif %}">
+    <article class="job-row {% if job['is_new'] %}is-new{% endif %} {% if job['is_highlighted'] %}is-highlighted{% endif %}"
+        data-job-id="{{ job['id'] }}" data-job-title="{{ job['title'] }}" data-company-name="{{ job['company_name'] }}">
         <div class="job-state" aria-hidden="true"></div>
         <div class="job-copy">
             <div class="job-meta">
@@ -8,6 +9,8 @@
                 {% if job['is_new'] %}<span class="tag tag-new" data-en="New" data-pt="Nova">New</span>{% endif %}
                 {% if job['reopened_at'] and job['status'] == 'active' %}<span class="tag tag-reopened" data-en="Reopened" data-pt="Reaberta">Reopened</span>{% endif %}
                 {% if job['is_highlighted'] %}<span class="tag tag-highlight" data-en="Highlight" data-pt="Destaque">Highlight</span>{% endif %}
+                {% if job['first_visited_at'] %}<span class="tag tag-visited" data-en="Visited" data-pt="Visitada">Visited</span>{% endif %}
+                <span class="tag tag-last-opened" data-en="Last opened" data-pt="Última aberta" hidden></span>
                 {% if job['archive_reason'] %}
                 {% set reason_label = archive_reason_labels.get(job['archive_reason']) %}
                 {% if reason_label %}<span class="tag tag-muted" data-en="{{ reason_label['en'] }}" data-pt="{{ reason_label['pt'] }}">{{ reason_label['en'] }}</span>{% endif %}
@@ -17,30 +20,14 @@
             <p><span data-en="First seen" data-pt="Vista primeiro em">First seen</span> <time datetime="{{ job['first_seen_at'] }}">{{ job['first_seen_at'] }}</time></p>
         </div>
         <div class="job-actions">
-            <a class="button button-link" href="{{ job['url'] }}" target="_blank" rel="noopener noreferrer">
+            <a class="button button-link js-open-job" data-job-id="{{ job['id'] }}" href="{{ job['url'] }}" target="_blank" rel="noopener noreferrer">
                 <span data-en="Open job" data-pt="Abrir vaga">Open job</span><span aria-hidden="true">↗</span>
             </a>
             {% if job['status'] == 'active' %}
-            <details class="archive-menu">
-                <summary class="button button-quiet" data-en="Archive" data-pt="Arquivar">Archive</summary>
-                <form action="/jobs/{{ job['id'] }}/archive" method="post" class="archive-form">
-                    <input type="hidden" name="return_to" value="{{ request.url.path }}">
-                    <label>
-                        <span data-en="Reason" data-pt="Motivo">Reason</span>
-                        <select name="reason" required>
-                            <option value="" disabled selected data-en="Choose a reason" data-pt="Escolha um motivo">Choose a reason</option>
-                            {% for slug, label_en, label_pt in archive_reasons %}
-                            <option value="{{ slug }}" data-en="{{ label_en }}" data-pt="{{ label_pt }}">{{ label_en }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <label>
-                        <span data-en="Note, optional" data-pt="Observação, opcional">Note, optional</span>
-                        <textarea name="note" rows="2" maxlength="500"></textarea>
-                    </label>
-                    <button class="button button-primary" type="submit" data-en="Confirm archive" data-pt="Confirmar arquivamento">Confirm archive</button>
-                </form>
-            </details>
+            <button type="button" class="button button-positive js-quick-archive" data-job-id="{{ job['id'] }}" data-reason="applied">
+                <span aria-hidden="true">✓</span><span data-en="Applied" data-pt="Já me candidatei">Applied</span>
+            </button>
+            <button type="button" class="button button-quiet js-open-archive-modal" data-job-id="{{ job['id'] }}" data-en="Archive" data-pt="Arquivar">Archive</button>
             {% else %}
             <form action="/jobs/{{ job['id'] }}/restore" method="post">
                 <input type="hidden" name="return_to" value="{{ request.url.path }}">

@@ -68,6 +68,10 @@ def safe_return_path(value: str, fallback: str) -> str:
     return value if value.startswith("/") and not value.startswith("//") else fallback
 
 
+def wants_json(request: Request) -> bool:
+    return "application/json" in request.headers.get("accept", "")
+
+
 def jobs_for(view: str) -> list[object]:
     predicates = {
         "all": "j.status = 'active'",
@@ -144,6 +148,7 @@ async def archived_jobs(request: Request):
 
 @app.post("/jobs/{job_id}/archive")
 async def archive_job(
+    request: Request,
     job_id: int,
     reason: str = Form(...),
     note: str = Form(""),
@@ -162,23 +167,44 @@ async def archive_job(
         )
         if not cursor.rowcount:
             raise HTTPException(status_code=404)
+    if wants_json(request):
+        return {"ok": True}
     return RedirectResponse(safe_return_path(return_to, "/jobs"), status_code=303)
 
 
 @app.post("/jobs/{job_id}/restore")
-async def restore_job(job_id: int, return_to: str = Form("/jobs/archived")):
+async def restore_job(request: Request, job_id: int, return_to: str = Form("/jobs/archived")):
     with connection() as database:
         cursor = database.execute(
             """
             UPDATE jobs SET status = 'active', archive_source = NULL,
-                archive_reason = NULL, archive_note = NULL, archived_at = NULL, reopened_at = ?
+                archive_reason = NULL, archive_note = NULL, archived_at = NULL, reopened_at = NULL
             WHERE id = ?
             """,
-            (utc_now(), job_id),
+            (job_id,),
         )
         if not cursor.rowcount:
             raise HTTPException(status_code=404)
+    if wants_json(request):
+        return {"ok": True}
     return RedirectResponse(safe_return_path(return_to, "/jobs/archived"), status_code=303)
+
+
+@app.post("/jobs/{job_id}/visit")
+async def visit_job(job_id: int):
+    now = utc_now()
+    with connection() as database:
+        cursor = database.execute(
+            """
+            UPDATE jobs
+            SET first_visited_at = COALESCE(first_visited_at, ?), last_visited_at = ?
+            WHERE id = ?
+            """,
+            (now, now, job_id),
+        )
+        if not cursor.rowcount:
+            raise HTTPException(status_code=404)
+    return {"ok": True}
 
 
 @app.get("/companies")

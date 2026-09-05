@@ -153,15 +153,15 @@ class JobsPaginationTests(unittest.TestCase):
         response = self.client.get("/jobs")
         self.assertNotIn('class="pagination"', response.text)
 
-    def test_pagination_shows_all_numbers_up_to_eight_pages(self) -> None:
-        self._seed_jobs(PAGE_SIZE * 8)  # exactly 8 pages
+    def test_pagination_shows_all_numbers_up_to_seven_pages(self) -> None:
+        self._seed_jobs(PAGE_SIZE * 7)  # exactly 7 pages
         response = self.client.get("/jobs")
         body = response.text
-        for page_number in range(1, 9):
+        for page_number in range(1, 8):
             self.assertIn(f">{page_number}<", body)
         self.assertNotIn("…", body)
 
-    def test_pagination_uses_ellipsis_beyond_eight_pages(self) -> None:
+    def test_pagination_uses_ellipsis_beyond_seven_pages(self) -> None:
         self._seed_jobs(PAGE_SIZE * 20)  # 20 pages
         response = self.client.get("/jobs")
         self.assertIn("…", response.text)

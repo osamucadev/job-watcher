@@ -53,10 +53,39 @@ The first successful collection creates the baseline. Jobs already present durin
 - FastAPI
 - Server rendered HTML
 - SQLite
-- Playwright for JavaScript rendered career pages
+- httpx for direct calls to the InHire public API
 - Docker Compose
 
 The project intends to avoid a frontend JavaScript toolchain. If JavaScript dependencies become necessary, pnpm will be used.
+
+## Collection
+
+Job Watcher reads listings straight from the InHire public API instead of rendering
+career pages in a browser. For each company source it calls:
+
+```http
+GET https://api.inhire.app/job-posts/public/pages/lean
+Content-Type: application/json
+X-Tenant: <tenant>
+```
+
+The tenant is taken from the first label of the source host, so
+`https://lyncas.inhire.app/vagas` uses the tenant `lyncas`. The career page is
+taken from the path: `/vagas` means the default career page, while
+`/octadesk/vagas` or `/supero/vagas` select the `octadesk` and `supero` career
+pages. Results are filtered by that career page so a shared tenant only reports
+the jobs that belong to the registered source.
+
+Each listing entry gives a stable `jobId` used as the external identifier, a
+`displayName` used as the title, and a link back to the public job post.
+Collection uses a small concurrency limit, short timeouts, and a brief retry for
+transient failures only (timeouts, connection errors, HTTP 429, and HTTP 5xx).
+A failed or unconfirmed collection never archives a company's jobs; jobs are only
+archived when the API returns a valid response for the correct career page and a
+job is absent from it.
+
+This approach removed the Playwright and Chromium dependency, which makes the
+scan much faster and the Docker image much smaller.
 
 ## Visual direction
 
@@ -83,7 +112,7 @@ docker compose up -d --build
 
 Open [http://localhost:17843](http://localhost:17843) in a browser.
 
-The first collection starts automatically and creates the baseline. With 30 sources, it can take a few minutes. Refresh the dashboard to see collected jobs.
+The first collection starts automatically and creates the baseline. With 30 sources over the InHire API it finishes in a few seconds. Refresh the dashboard to see collected jobs.
 
 ### Stop
 

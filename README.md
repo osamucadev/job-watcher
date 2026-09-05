@@ -19,6 +19,7 @@ The first functional version is available. It includes the InHire collector, per
 - Brazilian Portuguese interface option
 - Per browser language persistence through localStorage
 - Overview of new and highlighted opportunities
+- Activity page with live check progress, per company state, check history, and a clear note that the app stays usable during a check
 - Complete active job listing
 - One click "Applied" action that archives a job with the applied reason
 - Manual job archiving and restoration
@@ -132,6 +133,23 @@ JOB_WATCHER_TIMEZONE=America/Sao_Paulo
 ```
 
 The interface language is independent for each browser profile and is stored only in browser localStorage.
+
+## Activity page
+
+The activity page (`/activity`) reports what a check is doing while it runs:
+
+- Overall progress as "companies checked" out of the total, with a per company
+  state of waiting, collecting, done, or failed.
+- A plain statement that every other page keeps working during a check. Only
+  starting a second manual check is blocked until the current one finishes.
+- A stalled warning when a running check has not updated its heartbeat for a
+  few minutes. The next scheduled check starts a fresh run.
+- History of recent checks with duration, status, and job counts.
+- The last result and last check time for each company source.
+
+While a check is running the page refreshes itself every few seconds with a
+plain meta refresh, so it needs no custom JavaScript. A leftover running check
+from a process that stopped mid run is closed out as failed on the next start.
 
 ## Data behavior
 

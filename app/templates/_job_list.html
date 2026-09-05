@@ -1,7 +1,7 @@
 <div class="job-list">
     {% for job in jobs %}
     <article class="job-row {% if job['is_new'] %}is-new{% endif %} {% if job['is_highlighted'] %}is-highlighted{% endif %}"
-        data-job-id="{{ job['id'] }}" data-job-title="{{ job['title'] }}" data-company-name="{{ job['company_name'] }}">
+        data-job-id="{{ job['id'] }}" data-job-title="{{ job['title'] }}" data-company-name="{{ job['company_name'] }}" data-status="{{ job['status'] }}">
         <div class="job-state" aria-hidden="true"></div>
         <div class="job-copy">
             <div class="job-meta">

@@ -136,59 +136,133 @@
     }
   });
 
-  const modal = document.querySelector("#archive-modal");
-  if (modal) {
-    const subject = modal.querySelector("#archive-modal-subject");
-    const reasonSelect = modal.querySelector("#archive-modal-reason");
-    const noteField = modal.querySelector("#archive-modal-note");
-    const errorText = modal.querySelector("#archive-modal-error");
-    const confirmButton = modal.querySelector("#archive-modal-confirm");
-    const form = modal.querySelector("#archive-modal-form");
-    let activeJobId = null;
+  // Archive modal: reason chips (radio group), note, confirm/cancel.
+  const archiveModal = document.querySelector("#archive-modal");
+  let openArchiveModal = () => {};
+  if (archiveModal) {
+    const subject = archiveModal.querySelector("#archive-modal-subject");
+    const reasonsContainer = archiveModal.querySelector("#archive-modal-reasons");
+    const noteField = archiveModal.querySelector("#archive-modal-note");
+    const errorText = archiveModal.querySelector("#archive-modal-error");
+    const validationText = archiveModal.querySelector("#archive-modal-validation");
+    const confirmButton = archiveModal.querySelector("#archive-modal-confirm");
+    const form = archiveModal.querySelector("#archive-modal-form");
+    let activeJob = null;
 
-    const resetModal = () => {
-      reasonSelect.value = "";
+    const reasonChips = () => Array.from(reasonsContainer.querySelectorAll(".reason-chip"));
+
+    const syncReasonStyles = () => {
+      reasonChips().forEach((chip) => {
+        chip.classList.toggle("is-selected", chip.querySelector("input").checked);
+      });
+    };
+
+    const resetArchiveModal = () => {
+      reasonsContainer.querySelectorAll('input[name="reason"]').forEach((input) => {
+        input.checked = false;
+      });
+      syncReasonStyles();
       noteField.value = "";
       errorText.hidden = true;
+      validationText.hidden = true;
       confirmButton.disabled = false;
     };
 
-    document.addEventListener("click", (event) => {
-      const trigger = event.target.closest(".js-open-archive-modal");
-      if (!trigger) return;
-      const row = trigger.closest(".job-row");
-      activeJobId = trigger.dataset.jobId;
-      subject.textContent = row ? `${row.dataset.jobTitle} — ${row.dataset.companyName}` : "";
-      resetModal();
-      modal.showModal();
-      reasonSelect.focus();
-    });
+    openArchiveModal = (job) => {
+      activeJob = job;
+      subject.textContent = `${job.title} — ${job.company}`;
+      resetArchiveModal();
+      archiveModal.showModal();
+      reasonChips()[0]?.querySelector("input")?.focus();
+    };
 
-    modal.addEventListener("click", (event) => {
-      if (event.target === modal) modal.close();
-      if (event.target.closest('[data-action="cancel"]')) modal.close();
+    reasonsContainer.addEventListener("change", syncReasonStyles);
+
+    archiveModal.addEventListener("click", (event) => {
+      if (event.target === archiveModal) archiveModal.close();
+      if (event.target.closest('[data-action="cancel"]')) archiveModal.close();
     });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      if (!reasonSelect.value) {
-        reasonSelect.reportValidity();
+      const selected = reasonsContainer.querySelector('input[name="reason"]:checked');
+      if (!selected) {
+        validationText.hidden = false;
+        reasonChips()[0]?.querySelector("input")?.focus();
         return;
       }
       confirmButton.disabled = true;
       errorText.hidden = true;
+      validationText.hidden = true;
       try {
-        const response = await postArchive(activeJobId, reasonSelect.value, noteField.value);
+        const response = await postArchive(activeJob.jobId, selected.value, noteField.value);
         if (!response.ok) throw new Error("archive-failed");
-        modal.close();
-        removeJobRow(activeJobId, "archived");
+        archiveModal.close();
+        removeJobRow(activeJob.jobId, "archived");
       } catch (error) {
         errorText.hidden = false;
         confirmButton.disabled = false;
       }
     });
+
+    document.addEventListener("click", (event) => {
+      const trigger = event.target.closest(".js-open-archive-modal");
+      if (!trigger) return;
+      const row = trigger.closest(".job-row");
+      openArchiveModal({
+        jobId: trigger.dataset.jobId,
+        title: row?.dataset.jobTitle || "",
+        company: row?.dataset.companyName || "",
+      });
+    });
   }
 
+  // Job action modal: opens right after "Open job", offers Applied / Archive / Keep active.
+  const jobActionModal = document.querySelector("#job-action-modal");
+  let openJobActionModal = () => {};
+  if (jobActionModal) {
+    const subject = jobActionModal.querySelector("#job-action-modal-subject");
+    const applyButton = jobActionModal.querySelector("#job-action-apply");
+    const archiveButton = jobActionModal.querySelector("#job-action-archive");
+    const closeButton = jobActionModal.querySelector('[data-action="close-job-action"]');
+    let currentJob = null;
+
+    openJobActionModal = (job) => {
+      currentJob = job;
+      subject.textContent = `${job.title} — ${job.company}`;
+      applyButton.disabled = false;
+      jobActionModal.showModal();
+      closeButton?.focus();
+    };
+
+    jobActionModal.addEventListener("click", (event) => {
+      if (event.target === jobActionModal) jobActionModal.close();
+      if (event.target.closest('[data-action="close-job-action"]')) jobActionModal.close();
+    });
+
+    applyButton.addEventListener("click", async () => {
+      if (!currentJob) return;
+      applyButton.disabled = true;
+      try {
+        const response = await postArchive(currentJob.jobId, "applied", "");
+        if (!response.ok) throw new Error("archive-failed");
+        jobActionModal.close();
+        removeJobRow(currentJob.jobId, "applied");
+      } catch (error) {
+        applyButton.disabled = false;
+        showToast(MESSAGES.actionFailed[currentLanguage()]);
+      }
+    });
+
+    archiveButton.addEventListener("click", () => {
+      if (!currentJob) return;
+      const job = currentJob;
+      jobActionModal.close();
+      openArchiveModal(job);
+    });
+  }
+
+  // "Last opened" highlight: purely client-side, keyed by job id.
   const lastOpenedKey = "job-watcher-last-opened";
 
   const applyLastOpened = () => {
@@ -211,7 +285,9 @@
   document.addEventListener("click", (event) => {
     const link = event.target.closest(".js-open-job");
     if (!link) return;
+    const row = link.closest(".job-row");
     const jobId = link.dataset.jobId;
+
     try {
       localStorage.setItem(lastOpenedKey, jobId);
     } catch (error) {
@@ -219,6 +295,14 @@
     }
     fetch(`/jobs/${jobId}/visit`, { method: "POST", keepalive: true }).catch(() => {});
     applyLastOpened();
+
+    if (row?.dataset.status === "active") {
+      openJobActionModal({
+        jobId,
+        title: row.dataset.jobTitle || "",
+        company: row.dataset.companyName || "",
+      });
+    }
   });
 })();
 

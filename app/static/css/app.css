@@ -241,7 +241,7 @@ a { color: inherit; }
 .job-state { background: var(--ink-700); }
 .job-row.is-highlighted .job-state { background: var(--cyan); }
 .job-row.is-new .job-state { background: var(--yellow); }
-.job-row.is-last-opened { border-color: var(--purple); }
+.job-row.is-last-opened { outline: 3px solid var(--purple); outline-offset: -3px; }
 .job-row.is-last-opened .job-state { background: var(--purple); }
 .job-copy { align-self: center; padding: 20px 24px; }
 .job-copy h2 { margin: 7px 0 6px; font-size: 18px; font-weight: 550; }
@@ -253,8 +253,8 @@ a { color: inherit; }
 .tag-highlight { background: var(--cyan); }
 .tag-reopened { background: var(--pink); color: white; }
 .tag-muted { color: var(--paper); background: var(--surface-soft); }
-.tag-visited, .tag-last-opened { color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line); }
-.tag-last-opened { color: var(--paper); border-color: var(--purple); }
+.tag-visited { color: var(--muted); background: var(--surface-soft); border: 1px solid var(--line); }
+.tag-last-opened { color: white; background: var(--purple); font-weight: 700; }
 .job-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 20px; }
 .archive-note { grid-column: 2 / -1; margin: 0 20px 16px; padding: 10px 12px; color: var(--muted); background: var(--surface-soft); font-size: 12px; }
 
@@ -344,6 +344,34 @@ dialog.modal::backdrop { background: rgba(23, 63, 73, 0.55); }
 .modal-box textarea { resize: vertical; }
 .modal-error { margin: 0; padding: 9px 12px; color: #b8283f; background: rgba(214, 64, 88, 0.12); font-size: 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.modal-actions-stack { flex-direction: column; align-items: stretch; }
+.modal-actions-stack .button { justify-content: center; }
+
+.modal-field-label { margin: 0 0 6px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.reason-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.reason-chip {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 14px;
+    color: var(--paper);
+    background: var(--surface-soft);
+    border: 1px solid var(--line);
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+    user-select: none;
+}
+.reason-chip input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+}
+.reason-chip:hover { border-color: var(--muted); }
+.reason-chip.is-selected { color: white; background: var(--paper); border-color: var(--paper); }
+.reason-chip:focus-within { outline: 2px solid var(--yellow); outline-offset: 2px; }
 
 .toast-region {
     position: fixed;

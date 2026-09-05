@@ -152,6 +152,23 @@ class JobsApiTests(unittest.TestCase):
         self.assertNotIn("archive-menu", body)
         self.assertNotIn("<details", body)
 
+    def test_archive_modal_renders_reason_chips_not_dropdown(self) -> None:
+        response = self.client.get("/jobs")
+        self.assertEqual(response.status_code, 200)
+        body = response.text
+        self.assertIn("reason-chip", body)
+        self.assertIn('name="reason"', body)
+        self.assertNotIn('<select name="reason"', body)
+
+    def test_job_action_modal_present_for_post_open_flow(self) -> None:
+        response = self.client.get("/jobs")
+        self.assertEqual(response.status_code, 200)
+        body = response.text
+        self.assertIn('id="job-action-modal"', body)
+        self.assertIn('id="job-action-apply"', body)
+        self.assertIn('id="job-action-archive"', body)
+        self.assertIn('data-pt="Manter ativa"', body)
+
     def test_visited_tag_appears_after_visiting(self) -> None:
         before = self.client.get("/jobs").text
         self.assertNotIn('data-en="Visited"', before)

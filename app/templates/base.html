@@ -6,8 +6,8 @@
     <meta name="theme-color" content="#218b8d">
     <title>{% block title %}Job Watcher{% endblock %}</title>
     <link rel="icon" href="{{ url_for('static', path='img/job-watcher-mark.svg') }}" type="image/svg+xml">
-    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}">
-    <script src="{{ url_for('static', path='js/app.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}?v={{ asset_version }}">
+    <script src="{{ url_for('static', path='js/app.js') }}?v={{ asset_version }}" defer></script>
 </head>
 <body>
     <div class="app-shell">
@@ -84,25 +84,47 @@
                 </button>
             </div>
             <p class="modal-subject" id="archive-modal-subject"></p>
-            <label>
-                <span data-en="Reason" data-pt="Motivo">Reason</span>
-                <select name="reason" id="archive-modal-reason" required>
-                    <option value="" disabled selected data-en="Choose a reason" data-pt="Escolha um motivo">Choose a reason</option>
+            <div>
+                <p class="modal-field-label" id="archive-modal-reasons-label" data-en="Reason" data-pt="Motivo">Reason</p>
+                <div class="reason-grid" id="archive-modal-reasons" role="group" aria-labelledby="archive-modal-reasons-label">
                     {% for slug, label_en, label_pt in archive_reasons %}
-                    <option value="{{ slug }}" data-en="{{ label_en }}" data-pt="{{ label_pt }}">{{ label_en }}</option>
+                    <label class="reason-chip">
+                        <input type="radio" name="reason" value="{{ slug }}">
+                        <span data-en="{{ label_en }}" data-pt="{{ label_pt }}">{{ label_en }}</span>
+                    </label>
                     {% endfor %}
-                </select>
-            </label>
+                </div>
+            </div>
             <label>
                 <span data-en="Note, optional" data-pt="Observação, opcional">Note, optional</span>
                 <textarea name="note" id="archive-modal-note" rows="3" maxlength="500"></textarea>
             </label>
+            <p class="modal-error" id="archive-modal-validation" role="alert" hidden data-en="Choose a reason to continue." data-pt="Escolha um motivo para continuar.">Choose a reason to continue.</p>
             <p class="modal-error" id="archive-modal-error" role="alert" hidden data-en="Something went wrong. Try again." data-pt="Algo deu errado. Tente novamente.">Something went wrong. Try again.</p>
             <div class="modal-actions">
                 <button type="button" class="button button-quiet" data-action="cancel" data-en="Cancel" data-pt="Cancelar">Cancel</button>
                 <button type="submit" class="button button-primary" id="archive-modal-confirm" data-en="Confirm archive" data-pt="Confirmar arquivamento">Confirm archive</button>
             </div>
         </form>
+    </dialog>
+
+    <dialog id="job-action-modal" class="modal" aria-labelledby="job-action-modal-title">
+        <div class="modal-box">
+            <div class="modal-head">
+                <h2 id="job-action-modal-title" data-en="What's next?" data-pt="E agora?">What's next?</h2>
+                <button type="button" class="modal-close" data-action="close-job-action" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <p class="modal-subject" id="job-action-modal-subject"></p>
+            <div class="modal-actions modal-actions-stack">
+                <button type="button" class="button button-positive" id="job-action-apply">
+                    <span aria-hidden="true">✓</span><span data-en="Applied" data-pt="Já me candidatei">Applied</span>
+                </button>
+                <button type="button" class="button button-quiet" id="job-action-archive" data-en="Archive" data-pt="Arquivar">Archive</button>
+                <button type="button" class="button button-quiet" data-action="close-job-action" data-en="Keep active" data-pt="Manter ativa">Keep active</button>
+            </div>
+        </div>
     </dialog>
 
     <div id="toast-region" class="toast-region" aria-live="polite"></div>

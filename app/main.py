@@ -28,6 +28,8 @@ app = FastAPI(title=APP_NAME, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
+ASSET_VERSION = utc_now()
+
 ARCHIVE_REASONS = (
     ("applied", "Already applied", "Já me candidatei"),
     ("not_interested", "Not interested", "Não tenho interesse"),
@@ -61,6 +63,7 @@ def common_context(request: Request, section: str) -> dict[str, object]:
         "monitor_running": monitor.is_running,
         "archive_reasons": ARCHIVE_REASONS,
         "archive_reason_labels": ARCHIVE_REASON_LABELS,
+        "asset_version": ASSET_VERSION,
     }
 
 

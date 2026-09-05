@@ -20,13 +20,19 @@ The first functional version is available. It includes the InHire collector, per
 - Per browser language persistence through localStorage
 - Overview of new and highlighted opportunities
 - Complete active job listing
+- One click "Applied" action that archives a job with the applied reason
 - Manual job archiving and restoration
-- Required archive reasons with an optional personal note
+- Archive reasons shown as one click chips, with an optional personal note
+- A short action modal right after opening a job, offering Applied, Archive, or keep it active
+- Toast confirmations with an undo option after archiving or applying
+- Visited indicator once a job link has been opened, kept in the database
+- Highlighted border on the job most recently opened, kept in the browser
 - Automatic archiving when a job disappears from its source
 - Dedicated archive with indefinite history
 - Company source management from the interface
 - Direct links that open job posts in a new browser tab
 - Editable keywords for software development, AI, mobile, backend, frontend, full stack, and technical leadership roles
+- Short, flat styled transitions for modals, toasts, and list changes, off by default under reduced motion preferences
 
 ## Schedule
 
@@ -108,6 +114,8 @@ The interface language is independent for each browser profile and is stored onl
 - Manual reasons include already applied, no interest, work arrangement, requirements, compensation, closed applications, and other.
 - Manually archived jobs remain archived while their source stays active.
 - Removing a company stops monitoring and archives its active jobs while preserving history.
+- The first and last time a job link is opened are recorded in SQLite.
+- Undoing an archive restores the job without marking it as reopened. That label stays reserved for jobs the source itself brings back.
 
 ## Development
 

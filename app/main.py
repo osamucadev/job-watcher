@@ -11,16 +11,33 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from app.config import APP_NAME, PAGE_SIZE, STATIC_DIR, TEMPLATES_DIR
-from app.database import connection, fetch_all, fetch_one, get_keywords, initialize_database, set_keywords, utc_now
+from app.config import (
+    ACTIVITY_HISTORY_LIMIT,
+    APP_NAME,
+    PAGE_SIZE,
+    STALE_RUN_SECONDS,
+    STATIC_DIR,
+    TEMPLATES_DIR,
+)
+from app.database import (
+    connection,
+    fetch_all,
+    fetch_one,
+    get_keywords,
+    initialize_database,
+    mark_interrupted_runs,
+    set_keywords,
+    utc_now,
+)
 from app.services.monitor import monitor
 from app.services.pagination import normalize_page, page_sequence
-from app.services.scheduler import start_scheduler, stop_scheduler
+from app.services.scheduler import next_scheduled_run, start_scheduler, stop_scheduler
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database()
+    mark_interrupted_runs()
     await start_scheduler()
     yield
     stop_scheduler()
@@ -54,6 +71,17 @@ ARCHIVE_REASON_LABELS["source_removed"] = {
 }
 
 
+def run_looks_stalled(run: object) -> bool:
+    if not run or run["status"] != "running":
+        return False
+    stamp = run["heartbeat_at"] or run["started_at"]
+    try:
+        last_beat = datetime.fromisoformat(stamp)
+    except (TypeError, ValueError):
+        return False
+    return (datetime.now(UTC) - last_beat).total_seconds() > STALE_RUN_SECONDS
+
+
 def common_context(request: Request, section: str) -> dict[str, object]:
     last_run = fetch_one(
         "SELECT * FROM check_runs ORDER BY started_at DESC LIMIT 1"
@@ -63,6 +91,8 @@ def common_context(request: Request, section: str) -> dict[str, object]:
         "section": section,
         "last_run": last_run,
         "monitor_running": monitor.is_running,
+        "monitor_progress": monitor.snapshot(),
+        "run_stalled": run_looks_stalled(last_run),
         "archive_reasons": ARCHIVE_REASONS,
         "archive_reason_labels": ARCHIVE_REASON_LABELS,
         "asset_version": ASSET_VERSION,
@@ -343,6 +373,46 @@ async def update_keywords(keywords: str = Form("")):
     values = sorted({line.strip() for line in keywords.splitlines() if line.strip()}, key=str.casefold)
     set_keywords(values)
     return RedirectResponse("/settings?saved=1", status_code=303)
+
+
+def _run_duration_seconds(run: object) -> float | None:
+    if not run["finished_at"]:
+        return None
+    try:
+        started = datetime.fromisoformat(run["started_at"])
+        finished = datetime.fromisoformat(run["finished_at"])
+    except (TypeError, ValueError):
+        return None
+    return round((finished - started).total_seconds(), 1)
+
+
+@app.get("/activity")
+async def activity(request: Request):
+    context = common_context(request, "activity")
+    history = [
+        {**dict(run), "duration_seconds": _run_duration_seconds(run)}
+        for run in fetch_all(
+            "SELECT * FROM check_runs ORDER BY started_at DESC LIMIT ?",
+            (ACTIVITY_HISTORY_LIMIT,),
+        )
+    ]
+    companies = fetch_all(
+        """
+        SELECT c.name, c.url, c.is_active, c.last_checked_at, c.last_error,
+            COUNT(j.id) FILTER (WHERE j.status = 'active') AS active_jobs
+        FROM companies c LEFT JOIN jobs j ON j.company_id = c.id
+        WHERE c.is_removed = 0
+        GROUP BY c.id
+        ORDER BY c.name COLLATE NOCASE
+        """
+    )
+    next_run = next_scheduled_run()
+    context.update(
+        history=history,
+        companies=companies,
+        next_run=next_run.isoformat() if next_run else None,
+    )
+    return templates.TemplateResponse("activity.html", context)
 
 
 @app.post("/checks/run")

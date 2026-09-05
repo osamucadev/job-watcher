@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Activity | Job Watcher{% endblock %}
+{% block heading %}<span data-en="Collection activity" data-pt="Atividade de coleta">Collection activity</span>{% endblock %}
+{% block head_extra %}{% if monitor_running %}<meta http-equiv="refresh" content="3">{% endif %}{% endblock %}
+{% block content %}
+
+<section class="section-block section-block-first">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow" data-en="LIVE STATUS" data-pt="STATUS AO VIVO">LIVE STATUS</p>
+            <h2 data-en="Current check" data-pt="Verificação atual">Current check</h2>
+        </div>
+        {% if not monitor_running %}
+        <form action="/checks/run" method="post">
+            <input type="hidden" name="return_to" value="/activity">
+            <button class="button button-primary" type="submit" data-en="Check now" data-pt="Verificar agora">Check now</button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if monitor_running %}
+    {% if run_stalled %}
+    <p class="activity-banner is-warning">
+        <span data-en="This check has not made progress recently. It may be stuck. The next scheduled check will start a fresh run." data-pt="Esta verificação não avança há algum tempo. Ela pode ter travado. A próxima verificação agendada iniciará uma nova execução.">This check has not made progress recently. It may be stuck. The next scheduled check will start a fresh run.</span>
+    </p>
+    {% else %}
+    <p class="activity-banner is-calm">
+        <span data-en="A check is running. You can keep using Job Watcher normally, on any page. New jobs appear when it finishes. Only starting a second manual check is unavailable until this one ends." data-pt="Uma verificação está em andamento. Você pode continuar usando o Job Watcher normalmente, em qualquer tela. As vagas novas aparecem ao término. Apenas iniciar uma segunda verificação manual fica indisponível até esta terminar.">A check is running. You can keep using Job Watcher normally, on any page. New jobs appear when it finishes. Only starting a second manual check is unavailable until this one ends.</span>
+    </p>
+    {% endif %}
+
+    {% set progress = monitor_progress %}
+    {% if progress %}
+    {% set percent = (100 * progress.settled / progress.total) if progress.total else 0 %}
+    <div class="progress-block">
+        <div class="progress-line">
+            <strong>{{ progress.settled }} / {{ progress.total }}</strong>
+            <span data-en="companies checked" data-pt="empresas verificadas">companies checked</span>
+            <time datetime="{{ progress.started_at }}">{{ progress.started_at }}</time>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuenow="{{ progress.settled }}" aria-valuemin="0" aria-valuemax="{{ progress.total }}">
+            <span class="progress-fill" style="width: {{ percent }}%"></span>
+        </div>
+        <div class="progress-legend">
+            <span><span class="dot dot-done"></span>{{ progress.counts.done }} <span data-en="done" data-pt="concluídas">done</span></span>
+            <span><span class="dot dot-collecting"></span>{{ progress.counts.collecting }} <span data-en="collecting" data-pt="coletando">collecting</span></span>
+            <span><span class="dot dot-pending"></span>{{ progress.counts.pending }} <span data-en="waiting" data-pt="aguardando">waiting</span></span>
+            <span><span class="dot dot-error"></span>{{ progress.counts.error }} <span data-en="failed" data-pt="com falha">failed</span></span>
+        </div>
+    </div>
+
+    <ul class="activity-companies">
+        {% for company in progress.companies %}
+        <li class="activity-company state-{{ company.state }}">
+            <span class="dot dot-{{ company.state }}"></span>
+            <span class="activity-company-name">{{ company.name }}</span>
+            {% if company.state == 'done' %}
+            <span class="activity-company-meta">{{ company.jobs }} <span data-en="jobs" data-pt="vagas">jobs</span></span>
+            {% elif company.state == 'collecting' %}
+            <span class="activity-company-meta" data-en="collecting" data-pt="coletando">collecting</span>
+            {% elif company.state == 'error' %}
+            <span class="activity-company-meta" data-en="failed" data-pt="com falha">failed</span>
+            {% else %}
+            <span class="activity-company-meta" data-en="waiting" data-pt="aguardando">waiting</span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="activity-banner is-calm" data-en="Starting up..." data-pt="Iniciando...">Starting up...</p>
+    {% endif %}
+
+    {% else %}
+    <div class="idle-grid">
+        <div class="idle-card">
+            <p class="eyebrow" data-en="STATE" data-pt="ESTADO">STATE</p>
+            <p class="idle-headline" data-en="No check running" data-pt="Nenhuma verificação em andamento">No check running</p>
+            <p data-en="Everything works normally. Start a check above or wait for the next scheduled window." data-pt="Tudo funciona normalmente. Inicie uma verificação acima ou aguarde o próximo horário agendado.">Everything works normally. Start a check above or wait for the next scheduled window.</p>
+        </div>
+        <div class="idle-card">
+            <p class="eyebrow" data-en="NEXT AUTOMATIC CHECK" data-pt="PRÓXIMA VERIFICAÇÃO AUTOMÁTICA">NEXT AUTOMATIC CHECK</p>
+            {% if next_run %}
+            <p class="idle-headline"><time datetime="{{ next_run }}">{{ next_run }}</time></p>
+            {% else %}
+            <p class="idle-headline" data-en="Not scheduled" data-pt="Não agendada">Not scheduled</p>
+            {% endif %}
+            <p data-en="Runs at 09, 12, 15 and 18, São Paulo time, every day." data-pt="Executa às 09, 12, 15 e 18, horário de São Paulo, todos os dias.">Runs at 09, 12, 15 and 18, São Paulo time, every day.</p>
+        </div>
+        {% if last_run %}
+        <div class="idle-card">
+            <p class="eyebrow" data-en="LAST CHECK" data-pt="ÚLTIMA VERIFICAÇÃO">LAST CHECK</p>
+            <p class="idle-headline">
+                {% if last_run['finished_at'] %}<time datetime="{{ last_run['finished_at'] }}">{{ last_run['finished_at'] }}</time>
+                {% else %}<time datetime="{{ last_run['started_at'] }}">{{ last_run['started_at'] }}</time>{% endif %}
+            </p>
+            <p>
+                <span data-en="Found" data-pt="Encontradas">Found</span> {{ last_run['jobs_found'] }} ·
+                <span data-en="new" data-pt="novas">new</span> {{ last_run['jobs_new'] }} ·
+                <span data-en="archived" data-pt="arquivadas">archived</span> {{ last_run['jobs_archived'] }}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</section>
+
+<section class="section-block">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow" data-en="HISTORY" data-pt="HISTÓRICO">HISTORY</p>
+            <h2 data-en="Recent checks" data-pt="Verificações recentes">Recent checks</h2>
+        </div>
+    </div>
+    {% if history %}
+    <div class="activity-table-wrap">
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th data-en="Started" data-pt="Início">Started</th>
+                    <th data-en="Duration" data-pt="Duração">Duration</th>
+                    <th data-en="Status" data-pt="Status">Status</th>
+                    <th data-en="Checked" data-pt="Verificadas">Checked</th>
+                    <th data-en="Found" data-pt="Encontradas">Found</th>
+                    <th data-en="New" data-pt="Novas">New</th>
+                    <th data-en="Archived" data-pt="Arquivadas">Archived</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in history %}
+                <tr>
+                    <td><time datetime="{{ run['started_at'] }}">{{ run['started_at'] }}</time></td>
+                    <td>
+                        {% if run['duration_seconds'] is not none %}{{ run['duration_seconds'] }}s
+                        {% else %}<span data-en="running" data-pt="em andamento">running</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if run['status'] == 'success' %}<span class="run-badge run-ok" data-en="Success" data-pt="Sucesso">Success</span>
+                        {% elif run['status'] == 'partial' %}<span class="run-badge run-warn" data-en="Partial" data-pt="Parcial">Partial</span>
+                        {% elif run['status'] == 'failed' %}<span class="run-badge run-bad" data-en="Failed" data-pt="Falhou">Failed</span>
+                        {% else %}<span class="run-badge run-live" data-en="Running" data-pt="Em andamento">Running</span>{% endif %}
+                    </td>
+                    <td>{{ run['companies_checked'] }} / {{ run['companies_total'] }}</td>
+                    <td>{{ run['jobs_found'] }}</td>
+                    <td>{{ run['jobs_new'] }}</td>
+                    <td>{{ run['jobs_archived'] }}</td>
+                </tr>
+                {% if run['error'] %}
+                <tr class="activity-error-row">
+                    <td colspan="7">{{ run['error'] }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="section-intro" data-en="No checks have run yet." data-pt="Nenhuma verificação foi executada ainda.">No checks have run yet.</p>
+    {% endif %}
+</section>
+
+<section class="section-block">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow" data-en="PER COMPANY" data-pt="POR EMPRESA">PER COMPANY</p>
+            <h2 data-en="Last result by source" data-pt="Último resultado por fonte">Last result by source</h2>
+        </div>
+    </div>
+    <div class="activity-table-wrap">
+        <table class="activity-table">
+            <thead>
+                <tr>
+                    <th data-en="Company" data-pt="Empresa">Company</th>
+                    <th data-en="Active jobs" data-pt="Vagas ativas">Active jobs</th>
+                    <th data-en="Last checked" data-pt="Última verificação">Last checked</th>
+                    <th data-en="State" data-pt="Estado">State</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for company in companies %}
+                <tr>
+                    <td>{{ company['name'] }}</td>
+                    <td>{{ company['active_jobs'] }}</td>
+                    <td>
+                        {% if company['last_checked_at'] %}<time datetime="{{ company['last_checked_at'] }}">{{ company['last_checked_at'] }}</time>
+                        {% else %}<span data-en="never" data-pt="nunca">never</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if not company['is_active'] %}<span class="run-badge run-muted" data-en="Paused" data-pt="Pausada">Paused</span>
+                        {% elif company['last_error'] %}<span class="run-badge run-bad" data-en="Error" data-pt="Erro">Error</span>
+                        {% else %}<span class="run-badge run-ok" data-en="OK" data-pt="OK">OK</span>{% endif %}
+                    </td>
+                </tr>
+                {% if company['last_error'] %}
+                <tr class="activity-error-row">
+                    <td colspan="4">{{ company['last_error'] }}</td>
+                </tr>
+                {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+{% endblock %}

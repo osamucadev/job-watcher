@@ -8,6 +8,7 @@
     <link rel="icon" href="{{ url_for('static', path='img/job-watcher-mark.svg') }}" type="image/svg+xml">
     <link rel="stylesheet" href="{{ url_for('static', path='css/app.css') }}?v={{ asset_version }}">
     <script src="{{ url_for('static', path='js/app.js') }}?v={{ asset_version }}" defer></script>
+    {% block head_extra %}{% endblock %}
 </head>
 <body>
     <div class="app-shell">
@@ -36,6 +37,10 @@
                 <a class="nav-link {% if section == 'settings' %}active{% endif %}" href="/settings">
                     <span class="nav-mark">06</span><span data-en="Settings" data-pt="Configurações">Settings</span>
                 </a>
+                <a class="nav-link {% if section == 'activity' %}active{% endif %}" href="/activity">
+                    <span class="nav-mark">07</span><span data-en="Activity" data-pt="Atividade">Activity</span>
+                    {% if monitor_running %}<span class="nav-pulse" aria-hidden="true"></span>{% endif %}
+                </a>
             </nav>
 
             <div class="sidebar-foot">
@@ -59,16 +64,26 @@
                     <p class="eyebrow">INHIRE MONITOR</p>
                     <h1>{% block heading %}Job Watcher{% endblock %}</h1>
                 </div>
+                {% if monitor_running %}
+                <a class="check-status {% if run_stalled %}is-stalled{% endif %}" href="/activity">
+                    {% if run_stalled %}
+                    <span class="check-status-label" data-en="Check may be stuck" data-pt="Verificação pode ter travado">Check may be stuck</span>
+                    {% else %}
+                    <span class="check-status-label" data-en="Checking now" data-pt="Verificando agora">Checking now</span>
+                    {% endif %}
+                    {% if monitor_progress %}
+                    <span class="check-status-count">{{ monitor_progress.settled }}/{{ monitor_progress.total }}</span>
+                    {% endif %}
+                    <span class="check-status-more" data-en="View status" data-pt="Ver status">View status</span>
+                </a>
+                {% else %}
                 <form action="/checks/run" method="post">
                     <input type="hidden" name="return_to" value="{{ request.url.path }}">
-                    <button class="button button-primary" type="submit" {% if monitor_running %}disabled{% endif %}>
-                        {% if monitor_running %}
-                        <span data-en="Checking now" data-pt="Verificando agora">Checking now</span>
-                        {% else %}
+                    <button class="button button-primary" type="submit">
                         <span data-en="Check now" data-pt="Verificar agora">Check now</span>
-                        {% endif %}
                     </button>
                 </form>
+                {% endif %}
             </header>
 
             {% block content %}{% endblock %}

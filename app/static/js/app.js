@@ -41,6 +41,16 @@
 (() => {
   const currentLanguage = () => (document.documentElement.dataset.language === "pt" ? "pt" : "en");
 
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const prefersReducedMotion = () => reducedMotionQuery.matches;
+
+  // Runs `apply` after two animation frames so the browser paints the
+  // "before" state first; without this, adding the class immediately after
+  // the element becomes visible skips straight to the "after" state.
+  const nextFrame = (apply) => {
+    requestAnimationFrame(() => requestAnimationFrame(apply));
+  };
+
   const MESSAGES = {
     archived: {
       en: (title) => `${title} archived.`,
@@ -51,29 +61,146 @@
       pt: (title) => `${title} marcada como Já me candidatei.`,
     },
     undo: { en: "Undo", pt: "Desfazer" },
+    close: { en: "Close", pt: "Fechar" },
     actionFailed: {
       en: "Could not complete the action. Try again.",
       pt: "Não foi possível concluir a ação. Tente novamente.",
     },
   };
 
+  const MODAL_MOTION_MS = 180;
+  const TOAST_MOTION_MS = 220;
+  const TOAST_DURATION_MS = 5000;
+  const ROW_LEAVE_PHASE_MS = 180;
+  const ROW_COLLAPSE_PHASE_MS = 220;
+  const ROW_ENTER_MS = 240;
+
+  const openDialogAnimated = (dialog) => {
+    dialog.showModal();
+    if (prefersReducedMotion()) {
+      dialog.classList.add("is-open");
+      return;
+    }
+    dialog.classList.remove("is-open");
+    nextFrame(() => dialog.classList.add("is-open"));
+  };
+
+  const closeDialogAnimated = (dialog) => {
+    if (!dialog.open) return;
+    dialog.classList.remove("is-open");
+    if (prefersReducedMotion()) {
+      dialog.close();
+      return;
+    }
+    window.setTimeout(() => {
+      if (!dialog.classList.contains("is-open")) dialog.close();
+    }, MODAL_MOTION_MS);
+  };
+
+  const wireDialogDismissal = (dialog, { onCancelClick, onOverlayClick } = {}) => {
+    dialog.addEventListener("cancel", (event) => {
+      // Escape triggers the native "cancel" event, which would otherwise
+      // close the dialog instantly with no exit animation.
+      event.preventDefault();
+      closeDialogAnimated(dialog);
+    });
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        onOverlayClick?.();
+        closeDialogAnimated(dialog);
+      } else if (event.target.closest("[data-action='cancel'], [data-action='close-job-action']")) {
+        onCancelClick?.();
+        closeDialogAnimated(dialog);
+      }
+    });
+  };
+
   const toastRegion = document.querySelector("#toast-region");
 
-  const showToast = (message, onUndo) => {
+  const showToast = (message, options = {}) => {
     if (!toastRegion) return;
+    const { onUndo, onUndoSuccess } = options;
+
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.setAttribute("role", "status");
 
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "toast-close";
+    closeButton.setAttribute("aria-label", MESSAGES.close[currentLanguage()]);
+    closeButton.innerHTML = '<span aria-hidden="true">&times;</span>';
+    toast.appendChild(closeButton);
+
+    const body = document.createElement("div");
+    body.className = "toast-body";
     const text = document.createElement("p");
     text.textContent = message;
-    toast.appendChild(text);
+    body.appendChild(text);
+    toast.appendChild(body);
 
-    let timer;
-    const dismiss = () => {
-      clearTimeout(timer);
-      toast.remove();
+    const progress = document.createElement("div");
+    progress.className = "toast-progress";
+    toast.appendChild(progress);
+
+    let timerId = null;
+    let remaining = TOAST_DURATION_MS;
+    let startedAt = null;
+    let isHovered = false;
+    let isFocused = false;
+
+    const startTimer = () => {
+      if (timerId !== null) return;
+      startedAt = Date.now();
+      timerId = window.setTimeout(dismiss, remaining);
+      toast.classList.remove("is-paused");
     };
+
+    const pauseTimer = () => {
+      if (timerId === null) return;
+      window.clearTimeout(timerId);
+      timerId = null;
+      remaining -= Date.now() - startedAt;
+      toast.classList.add("is-paused");
+    };
+
+    const syncPauseState = () => {
+      if (isHovered || isFocused) pauseTimer();
+      else startTimer();
+    };
+
+    function dismiss() {
+      if (timerId !== null) {
+        window.clearTimeout(timerId);
+        timerId = null;
+      }
+      toast.classList.remove("is-open");
+      toast.classList.add("is-leaving");
+      if (prefersReducedMotion()) {
+        toast.remove();
+        return;
+      }
+      window.setTimeout(() => toast.remove(), TOAST_MOTION_MS);
+    }
+
+    toast.addEventListener("mouseenter", () => {
+      isHovered = true;
+      syncPauseState();
+    });
+    toast.addEventListener("mouseleave", () => {
+      isHovered = false;
+      syncPauseState();
+    });
+    toast.addEventListener("focusin", () => {
+      isFocused = true;
+      syncPauseState();
+    });
+    toast.addEventListener("focusout", () => {
+      isFocused = false;
+      syncPauseState();
+    });
+
+    closeButton.addEventListener("click", dismiss);
 
     if (onUndo) {
       const undoButton = document.createElement("button");
@@ -81,19 +208,23 @@
       undoButton.className = "toast-undo";
       undoButton.textContent = MESSAGES.undo[currentLanguage()];
       undoButton.addEventListener("click", async () => {
+        pauseTimer();
         undoButton.disabled = true;
         try {
           await onUndo();
-          window.location.reload();
+          onUndoSuccess?.();
+          dismiss();
         } catch (error) {
           undoButton.disabled = false;
+          syncPauseState();
         }
       });
-      toast.appendChild(undoButton);
+      body.appendChild(undoButton);
     }
 
     toastRegion.appendChild(toast);
-    timer = setTimeout(dismiss, 6000);
+    nextFrame(() => toast.classList.add("is-open"));
+    startTimer();
   };
 
   const undoArchive = (jobId) => async () => {
@@ -105,13 +236,88 @@
     if (!response.ok) throw new Error("restore-failed");
   };
 
+  // Finds where `row` belongs among its siblings, mirroring the server's
+  // "is_new DESC, first_seen_at DESC" ordering, so an undone job reappears
+  // in roughly the right spot instead of always at the top or bottom.
+  const findInsertionPoint = (list, row) => {
+    const isNew = row.classList.contains("is-new");
+    const rowTime = row.querySelector("time")?.getAttribute("datetime") || "";
+    const siblings = Array.from(list.querySelectorAll(".job-row"));
+    for (const sibling of siblings) {
+      const siblingIsNew = sibling.classList.contains("is-new");
+      if (isNew && !siblingIsNew) return sibling;
+      if (isNew === siblingIsNew) {
+        const siblingTime = sibling.querySelector("time")?.getAttribute("datetime") || "";
+        if (rowTime > siblingTime) return sibling;
+      }
+    }
+    return null;
+  };
+
+  const animateRowRemoval = (row) => {
+    if (!row) return;
+    if (prefersReducedMotion()) {
+      row.remove();
+      return;
+    }
+    const startHeight = row.offsetHeight;
+    row.style.height = `${startHeight}px`;
+    row.style.overflow = "hidden";
+    row.offsetHeight; // eslint-disable-line no-unused-expressions -- force reflow before animating
+    row.classList.add("is-leaving");
+    window.setTimeout(() => {
+      row.classList.add("is-collapsing");
+      row.style.height = "0px";
+      window.setTimeout(() => row.remove(), ROW_COLLAPSE_PHASE_MS);
+    }, ROW_LEAVE_PHASE_MS);
+  };
+
+  const animateRowInsertion = (row) => {
+    if (!row) return;
+    const list = document.querySelector(".job-list");
+    if (!list) return;
+
+    row.classList.remove("is-leaving", "is-collapsing");
+    row.style.height = "";
+    row.style.overflow = "";
+
+    const animate = !prefersReducedMotion();
+    // Add the "before" state while the row is still detached, so its first
+    // rendered frame is already faded out; adding it after insertion would
+    // instead animate FROM the default visible state, flashing backwards.
+    if (animate) row.classList.add("is-entering");
+
+    list.querySelector(".empty-state")?.remove();
+    const insertBefore = findInsertionPoint(list, row);
+    if (insertBefore) list.insertBefore(row, insertBefore);
+    else list.appendChild(row);
+
+    if (!animate) return;
+
+    const targetHeight = row.offsetHeight;
+    row.style.height = "0px";
+    row.style.overflow = "hidden";
+    row.offsetHeight; // eslint-disable-line no-unused-expressions -- force reflow before animating
+    nextFrame(() => {
+      row.style.height = `${targetHeight}px`;
+      row.classList.remove("is-entering");
+      window.setTimeout(() => {
+        row.style.height = "";
+        row.style.overflow = "";
+      }, ROW_ENTER_MS);
+    });
+  };
+
   const removeJobRow = (jobId, kind) => {
     const row = document.querySelector(`.job-row[data-job-id="${jobId}"]`);
     const title = row ? row.dataset.jobTitle : "";
-    if (row) row.remove();
+    animateRowRemoval(row);
     const lang = currentLanguage();
     const message = kind === "applied" ? MESSAGES.applied[lang](title) : MESSAGES.archived[lang](title);
-    showToast(message, undoArchive(jobId));
+    showToast(message, {
+      onUndo: undoArchive(jobId),
+      onUndoSuccess: () => animateRowInsertion(row),
+    });
   };
 
   const postArchive = (jobId, reason, note) =>
@@ -172,16 +378,13 @@
       activeJob = job;
       subject.textContent = `${job.title} — ${job.company}`;
       resetArchiveModal();
-      archiveModal.showModal();
+      openDialogAnimated(archiveModal);
       reasonChips()[0]?.querySelector("input")?.focus();
     };
 
     reasonsContainer.addEventListener("change", syncReasonStyles);
 
-    archiveModal.addEventListener("click", (event) => {
-      if (event.target === archiveModal) archiveModal.close();
-      if (event.target.closest('[data-action="cancel"]')) archiveModal.close();
-    });
+    wireDialogDismissal(archiveModal);
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -197,7 +400,7 @@
       try {
         const response = await postArchive(activeJob.jobId, selected.value, noteField.value);
         if (!response.ok) throw new Error("archive-failed");
-        archiveModal.close();
+        closeDialogAnimated(archiveModal);
         removeJobRow(activeJob.jobId, "archived");
       } catch (error) {
         errorText.hidden = false;
@@ -231,14 +434,11 @@
       currentJob = job;
       subject.textContent = `${job.title} — ${job.company}`;
       applyButton.disabled = false;
-      jobActionModal.showModal();
+      openDialogAnimated(jobActionModal);
       closeButton?.focus();
     };
 
-    jobActionModal.addEventListener("click", (event) => {
-      if (event.target === jobActionModal) jobActionModal.close();
-      if (event.target.closest('[data-action="close-job-action"]')) jobActionModal.close();
-    });
+    wireDialogDismissal(jobActionModal);
 
     applyButton.addEventListener("click", async () => {
       if (!currentJob) return;
@@ -246,7 +446,7 @@
       try {
         const response = await postArchive(currentJob.jobId, "applied", "");
         if (!response.ok) throw new Error("archive-failed");
-        jobActionModal.close();
+        closeDialogAnimated(jobActionModal);
         removeJobRow(currentJob.jobId, "applied");
       } catch (error) {
         applyButton.disabled = false;
@@ -257,8 +457,11 @@
     archiveButton.addEventListener("click", () => {
       if (!currentJob) return;
       const job = currentJob;
-      jobActionModal.close();
-      openArchiveModal(job);
+      closeDialogAnimated(jobActionModal);
+      // Wait for the close animation (and the real .close() call inside it)
+      // to finish before opening the archive modal, so the two dialogs
+      // never overlap with two stacked backdrops.
+      window.setTimeout(() => openArchiveModal(job), prefersReducedMotion() ? 0 : MODAL_MOTION_MS);
     });
   }
 

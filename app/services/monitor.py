@@ -6,11 +6,16 @@ import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 
-from playwright.async_api import async_playwright
+import httpx
 
 from app.config import DATABASE_PATH
 from app.database import connection, get_keywords, utc_now
-from app.services.scraper import ScrapedJob, scrape_company
+from app.services.inhire import (
+    MAX_CONCURRENCY,
+    REQUEST_TIMEOUT,
+    ScrapedJob,
+    collect_company,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -180,16 +185,19 @@ class JobMonitor:
         errors: list[str] = []
 
         try:
-            async with async_playwright() as playwright:
-                browser = await playwright.chromium.launch(headless=True)
-                context = await browser.new_context(locale="pt-BR")
-                semaphore = asyncio.Semaphore(4)
+            limits = httpx.Limits(
+                max_connections=MAX_CONCURRENCY,
+                max_keepalive_connections=MAX_CONCURRENCY,
+            )
+            async with httpx.AsyncClient(
+                timeout=REQUEST_TIMEOUT, limits=limits, follow_redirects=True
+            ) as client:
+                semaphore = asyncio.Semaphore(MAX_CONCURRENCY)
 
                 async def collect(company: object) -> None:
                     async with semaphore:
-                        page = await context.new_page()
                         try:
-                            jobs = await scrape_company(page, company["url"])
+                            jobs = await collect_company(client, company["url"])
                             new_count, archived_count = await asyncio.to_thread(
                                 process_company_snapshot, company["id"], jobs
                             )
@@ -199,18 +207,15 @@ class JobMonitor:
                             totals["archived"] += archived_count
                         except Exception as error:
                             message = f"{company['name']}: {error}"
-                            logger.exception("Failed to collect %s", company["name"])
+                            logger.warning("Failed to collect %s: %s", company["name"], error)
                             errors.append(message)
                             with connection() as database:
                                 database.execute(
                                     "UPDATE companies SET last_error = ?, updated_at = ? WHERE id = ?",
                                     (str(error)[:500], utc_now(), company["id"]),
                                 )
-                        finally:
-                            await page.close()
 
                 await asyncio.gather(*(collect(company) for company in companies))
-                await browser.close()
 
             status = "success" if not errors else "partial"
             with connection() as database:

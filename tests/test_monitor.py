@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 
 from app.database import connection, initialize_database
+from app.services.inhire import ScrapedJob, extract_external_id
 from app.services.monitor import is_highlighted, process_company_snapshot
-from app.services.scraper import ScrapedJob, extract_external_id
 
 
 class ScraperTests(unittest.TestCase):

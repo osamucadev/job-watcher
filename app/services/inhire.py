@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+import unicodedata
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -75,12 +76,27 @@ def _record_career_pages(record: dict) -> set[str]:
     return values
 
 
-def _job_link(company_url: str, job_id: str) -> str:
+def _job_slug(title: str) -> str:
+    normalized = unicodedata.normalize("NFKD", title.casefold())
+    ascii_title = "".join(
+        character
+        for character in normalized
+        if not unicodedata.combining(character) and ord(character) < 128
+    )
+    # InHire removes paired punctuation instead of treating it as a word break.
+    # This turns "Desenvolvedor(a)" into "desenvolvedora".
+    ascii_title = re.sub(r"[()\[\]{}'\"]", "", ascii_title)
+    return re.sub(r"[^a-z0-9]+", "-", ascii_title).strip("-")
+
+
+def _job_link(company_url: str, job_id: str, title: str) -> str:
     parsed = urlparse(company_url)
     path = parsed.path.rstrip("/")
     if not path.lower().endswith("/vagas"):
         path = f"{path}/vagas" if path else "/vagas"
-    return f"{parsed.scheme}://{parsed.netloc}{path}/{job_id}"
+    base_url = f"{parsed.scheme}://{parsed.netloc}{path}/{job_id}"
+    slug = _job_slug(title)
+    return f"{base_url}/{slug}" if slug else base_url
 
 
 def records_to_jobs(records: list[dict], company_url: str, career_page: str) -> list[ScrapedJob]:
@@ -94,7 +110,7 @@ def records_to_jobs(records: list[dict], company_url: str, career_page: str) -> 
         title = (record.get("displayName") or "").strip()
         if not isinstance(job_id, str) or not job_id or not title:
             continue
-        jobs[job_id] = ScrapedJob(job_id, title, _job_link(company_url, job_id))
+        jobs[job_id] = ScrapedJob(job_id, title, _job_link(company_url, job_id, title))
     return list(jobs.values())
 
 

@@ -66,13 +66,40 @@ class RecordConversionTests(unittest.TestCase):
         jobs = records_to_jobs(records, "https://lyncas.inhire.app/vagas", "default")
         self.assertEqual(
             jobs,
-            [ScrapedJob("id-1", "Desenvolvedor Python", "https://lyncas.inhire.app/vagas/id-1")],
+            [
+                ScrapedJob(
+                    "id-1",
+                    "Desenvolvedor Python",
+                    "https://lyncas.inhire.app/vagas/id-1/desenvolvedor-python",
+                )
+            ],
         )
 
     def test_link_keeps_the_registered_career_page_segment(self) -> None:
         records = [_record("id-9", "Analista", "octadesk")]
         jobs = records_to_jobs(records, "https://lwsa.inhire.app/octadesk/vagas", "octadesk")
-        self.assertEqual(jobs[0].url, "https://lwsa.inhire.app/octadesk/vagas/id-9")
+        self.assertEqual(
+            jobs[0].url,
+            "https://lwsa.inhire.app/octadesk/vagas/id-9/analista",
+        )
+
+    def test_link_slug_matches_inhire_title_format(self) -> None:
+        records = [
+            _record(
+                "d05c8dc3-5bed-4b88-8e15-c847d3225697",
+                "Desenvolvedor(a) Python SR \u2014 Automacao e Integracoes",
+                "default",
+            )
+        ]
+
+        jobs = records_to_jobs(records, "https://zallpy.inhire.app/vagas", "default")
+
+        self.assertEqual(
+            jobs[0].url,
+            "https://zallpy.inhire.app/vagas/"
+            "d05c8dc3-5bed-4b88-8e15-c847d3225697/"
+            "desenvolvedora-python-sr-automacao-e-integracoes",
+        )
 
     def test_entries_without_id_or_title_are_skipped(self) -> None:
         records = [

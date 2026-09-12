@@ -7,7 +7,7 @@ The first supported source is InHire, read directly from its public API. Other p
 ## Running locally
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/osamucadev/job-watcher.git
 cd job-watcher
 docker compose up -d --build
 ```

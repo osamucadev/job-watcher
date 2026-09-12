@@ -63,3 +63,5 @@ If you prefer to edit the initial list directly, it lives in [`app/database.py`]
 ## More documentation
 
 See [AGENTS.md](AGENTS.md) for the product and technical guidelines behind this project.
+
+This README is also available in [Brazilian Portuguese](docs/README.pt-BR.md).

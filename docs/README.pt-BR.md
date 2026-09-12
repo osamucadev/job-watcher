@@ -60,6 +60,14 @@ Se preferir editar a lista inicial diretamente, ela fica em [`app/database.py`](
 </tr>
 </table>
 
+## Contribuindo
+
+Veja [CONTRIBUTING.md](../CONTRIBUTING.md) (em inglês) para o setup local, diretrizes e como adicionar uma fonte de empresa.
+
+## Licença
+
+MIT, veja [LICENSE](../LICENSE).
+
 ## Mais documentação
 
 Veja [AGENTS.md](../AGENTS.md) para as diretrizes de produto e técnicas por trás deste projeto.

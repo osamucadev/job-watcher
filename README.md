@@ -6,6 +6,8 @@ The first supported source is InHire, read directly from its public API. Other p
 
 ## Running locally
 
+Requires Docker with the Compose plugin (`docker compose version`).
+
 ```bash
 git clone https://github.com/osamucadev/job-watcher.git
 cd job-watcher
